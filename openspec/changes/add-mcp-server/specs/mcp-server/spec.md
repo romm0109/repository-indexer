@@ -30,10 +30,10 @@ The system MUST provide a `search_code_semantic` tool that performs semantic sea
 #### Scenario: Execute Semantic Search
 - **WHEN** an MCP client calls `search_code_semantic` with parameters:
   - `query` (required): natural language search query
-  - `collectionName` (required): name of the collection to search
   - `prompt` (optional): context for query refinement
   - `top_k` (optional): number of results to return (default: 10)
-- **THEN** the tool SHALL invoke the existing search service
+- **THEN** the tool SHALL use the configured collection name(s) from MCP configuration
+- **AND** invoke the existing search service with the query and configured collection(s)
 - **AND** return results with score and code snippet payload
 - **AND** apply reranking if enabled
 
@@ -42,21 +42,27 @@ The system MUST provide a `search_code_semantic` tool that performs semantic sea
 - **THEN** the tool SHALL return an MCP error with code -32602 (Invalid params)
 - **AND** include a descriptive error message
 
+#### Scenario: Semantic Search without Collection Configuration
+- **WHEN** an MCP client calls `search_code_semantic` but no collection is configured
+- **THEN** the tool SHALL return an MCP error with code -32603 (Internal error)
+- **AND** include a message indicating collection configuration is required
+
 ### Requirement: Full-Text Search Tool
 The system MUST provide a `search_code_fulltext` tool that performs exact or partial text matching.
 
 #### Scenario: Execute Full-Text Search
 - **WHEN** an MCP client calls `search_code_fulltext` with parameters:
   - `textQuery` (required): text to search for in code content
-  - `collectionName` (required): name of the collection to search
   - `payload` (optional): filters to narrow results
   - `top_k` (optional): number of results to return (default: 10)
-- **THEN** the tool SHALL invoke the existing full-text search service
+- **THEN** the tool SHALL use the configured collection name(s) from MCP configuration
+- **AND** invoke the existing full-text search service
 - **AND** return matching code snippets with metadata
 
 #### Scenario: Full-Text Search with Payload Filters
 - **WHEN** an MCP client calls `search_code_fulltext` with payload filters like `{"language": "typescript"}`
 - **THEN** the tool SHALL apply the filters to narrow results
+- **AND** use the configured collection name(s)
 - **AND** return only code snippets matching both text query and filters
 
 ### Requirement: Payload Search Tool
@@ -64,15 +70,16 @@ The system MUST provide a `search_code_by_payload` tool that searches by metadat
 
 #### Scenario: Execute Payload Search
 - **WHEN** an MCP client calls `search_code_by_payload` with parameters:
-  - `collectionName` (required): name of the collection to search
   - `payload` (required): metadata filters to match
   - `top_k` (optional): number of results to return (default: 10)
-- **THEN** the tool SHALL invoke the existing payload search service
+- **THEN** the tool SHALL use the configured collection name(s) from MCP configuration
+- **AND** invoke the existing payload search service
 - **AND** return code snippets matching the metadata filters
 
 #### Scenario: Search by File Path Pattern
 - **WHEN** an MCP client calls `search_code_by_payload` with `{"filePath": "/src/search/*"}`
-- **THEN** the tool SHALL return all indexed code from files matching the path pattern
+- **THEN** the tool SHALL use the configured collection name(s)
+- **AND** return all indexed code from files matching the path pattern
 
 ### Requirement: Error Handling
 The system MUST map service exceptions to appropriate MCP error responses.
@@ -105,6 +112,21 @@ The system MUST support configuration of MCP server behavior via environment var
   - `MCP_TRANSPORT`: transport type (default: stdio)
   - `MCP_SERVER_NAME`: server name for MCP clients (default: code-indexer)
   - `MCP_SERVER_VERSION`: server version (default: from package.json)
+  - `MCP_COLLECTION_NAME`: single collection to search (optional)
+  - `MCP_COLLECTION_NAMES`: comma-separated list of collections to search (optional)
+
+#### Scenario: Configure Single Collection
+- **WHEN** the application starts with `MCP_COLLECTION_NAME=my-repo`
+- **THEN** all MCP tools SHALL search only the "my-repo" collection
+
+#### Scenario: Configure Multiple Collections
+- **WHEN** the application starts with `MCP_COLLECTION_NAMES=repo1,repo2,repo3`
+- **THEN** all MCP tools SHALL search across "repo1", "repo2", and "repo3" collections
+
+#### Scenario: Missing Collection Configuration
+- **WHEN** the application starts with MCP enabled but no collection configured
+- **THEN** MCP tools SHALL return an error when invoked
+- **AND** the error SHALL indicate that collection configuration is required
 
 ### Requirement: Testing
 The MCP server functionality MUST be verifiable via unit and integration tests.

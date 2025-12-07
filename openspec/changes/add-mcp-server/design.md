@@ -67,6 +67,40 @@ The service currently has three search endpoints that would be valuable as MCP t
 - `search_code_fulltext` → [`POST /search/fulltext`](src/search/search.controller.ts:38)
 - `search_code_by_payload` → [`POST /search/payload`](src/search/search.controller.ts:25)
 
+### Collection Configuration Strategy
+**Decision:** Configure collection names in the MCP server configuration, not as tool parameters.
+
+**Rationale:**
+- Simplifies tool invocation for AI assistants - they only need to provide search criteria
+- Collection configuration is typically static per deployment/client
+- Reduces parameter complexity and potential errors
+- Follows MCP best practice of configuring server-specific settings in client config
+- Allows supporting both single collection and multi-collection scenarios via configuration
+
+**Implementation:**
+- Add `collectionName` or `collectionNames` to MCP configuration
+- MCP tools receive only search-specific parameters (query, textQuery, payload, top_k)
+- MCP service injects configured collection(s) when calling SearchService
+- Client configuration example:
+  ```json
+  {
+    "mcpServers": {
+      "code-indexer": {
+        "command": "node",
+        "args": ["dist/main.js"],
+        "env": {
+          "MCP_ENABLED": "true",
+          "MCP_COLLECTION_NAME": "my-repo"
+        }
+      }
+    }
+  }
+  ```
+
+**Alternatives considered:**
+- Pass collectionName as tool parameter: More flexible but adds complexity for every tool call
+- Hard-code collection name: Too inflexible for multi-tenant or multi-repo scenarios
+
 ### Module Structure
 **Decision:** Create completely isolated `src/mcp/` module with conditional loading.
 
@@ -136,17 +170,27 @@ export class McpModule {
 **Configuration schema:**
 ```typescript
 mcp: {
-  enabled: boolean;           // Enable/disable MCP server
-  transport: 'stdio' | 'sse'; // Transport type
-  name: string;               // Server name for MCP clients
-  version: string;            // Server version
+  enabled: boolean;                    // Enable/disable MCP server
+  transport: 'stdio' | 'sse';          // Transport type
+  name: string;                        // Server name for MCP clients
+  version: string;                     // Server version
+  collectionName?: string;             // Single collection to search (optional)
+  collectionNames?: string[];          // Multiple collections to search (optional)
 }
 ```
+
+**Configuration rules:**
+- If `collectionName` is set, all tools search that single collection
+- If `collectionNames` is set, tools search across multiple collections
+- If both are set, `collectionNames` takes precedence
+- If neither is set, tools will fail with a configuration error
 
 **Rationale:**
 - Centralized configuration management
 - Environment-based control
 - Consistent with existing config patterns
+- Supports both single and multi-collection scenarios
+- Collection configuration is deployment-specific, not request-specific
 
 ### Error Handling
 **Decision:** Map NestJS exceptions to MCP error responses.

@@ -6,11 +6,12 @@ The code-indexer service currently exposes search capabilities only through HTTP
 ## What Changes
 - Add completely independent MCP module that can be conditionally loaded
 - Expose all three search endpoints as MCP tools:
-  - `search_code_semantic` - Semantic search using vector embeddings
-  - `search_code_fulltext` - Full-text search for exact/partial matches
-  - `search_code_by_payload` - Search by metadata filters only
+  - `search_code_semantic` - Semantic search using vector embeddings (parameters: query, prompt, top_k)
+  - `search_code_fulltext` - Full-text search for exact/partial matches (parameters: textQuery, payload, top_k)
+  - `search_code_by_payload` - Search by metadata filters only (parameters: payload, top_k)
+- **Collection configuration in MCP client**: collectionName(s) are configured in the MCP client configuration file, not passed as tool parameters
 - Implement MCP protocol handlers for tool discovery and execution
-- Add configuration for MCP server transport (stdio/SSE)
+- Add configuration for MCP server transport (stdio/SSE) and default collection(s)
 - **Zero impact on existing code** - MCP module only loads when enabled
 - Maintain complete backward compatibility with existing REST API
 
@@ -19,7 +20,7 @@ The code-indexer service currently exposes search capabilities only through HTTP
 - **Affected code**:
   - New module: `src/mcp/` (completely isolated MCP implementation)
   - Minimal change: `src/app.module.ts` (conditional import of McpModule)
-  - Configuration: `src/config/configuration.ts` (MCP settings)
+  - Configuration: `src/config/configuration.ts` (MCP settings including default collections)
   - Dependencies: `package.json` (add `@modelcontextprotocol/sdk`)
 - **Existing code impact**: **NONE** - when MCP is disabled, no MCP code loads
 - **Breaking changes**: None - this is purely additive and isolated
