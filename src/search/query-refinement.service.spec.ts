@@ -39,7 +39,7 @@ describe('QueryRefinementService', () => {
 
     service = module.get<QueryRefinementService>(QueryRefinementService);
     configService = module.get<ConfigService>(ConfigService);
-    
+
     // Access the private openai instance to mock its methods
     mockOpenAI = (service as any).openai;
   });
@@ -61,8 +61,10 @@ describe('QueryRefinementService', () => {
         },
       ],
     }).compile();
-    const serviceNoKey = module.get<QueryRefinementService>(QueryRefinementService);
-    
+    const serviceNoKey = module.get<QueryRefinementService>(
+      QueryRefinementService,
+    );
+
     const result = await serviceNoKey.refineQuery('test', 'context');
     expect(result).toEqual(['test']);
   });
@@ -85,7 +87,10 @@ describe('QueryRefinementService', () => {
       expect.objectContaining({
         model: 'test-model',
         messages: expect.arrayContaining([
-          expect.objectContaining({ role: 'user', content: expect.stringContaining('test') }),
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('test'),
+          }),
         ]),
       }),
     );
@@ -108,7 +113,9 @@ describe('QueryRefinementService', () => {
   });
 
   it('should fallback to original query on error', async () => {
-    mockOpenAI.chat.completions.create.mockRejectedValue(new Error('API Error'));
+    mockOpenAI.chat.completions.create.mockRejectedValue(
+      new Error('API Error'),
+    );
 
     const result = await service.refineQuery('test', 'context');
     expect(result).toEqual(['test']);

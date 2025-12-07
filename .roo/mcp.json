@@ -1,0 +1,15 @@
+{
+    "mcpServers": {
+        "code-indexer": {
+            "command": "node",
+            "args": [
+                "http://localhost:3000",
+                "--collection",
+                "my-repo"
+            ],
+            "env": {
+                "MCP_ENABLED": "true"
+            }
+        }
+    }
+}

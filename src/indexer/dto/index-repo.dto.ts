@@ -10,7 +10,10 @@ export class IndexRepoDto {
   @IsString()
   collectionName: string;
 
-  @ApiPropertyOptional({ description: 'Glob patterns to exclude from indexing', type: [String] })
+  @ApiPropertyOptional({
+    description: 'Glob patterns to exclude from indexing',
+    type: [String],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

@@ -35,19 +35,29 @@ describe('IndexerService', () => {
     });
 
     it('should return true if file matches a pattern', () => {
-      expect(service.shouldExclude('src/app.spec.ts', ['**/*.spec.ts'])).toBe(true);
-      expect(service.shouldExclude('node_modules/package/index.js', ['node_modules/**'])).toBe(true);
+      expect(service.shouldExclude('src/app.spec.ts', ['**/*.spec.ts'])).toBe(
+        true,
+      );
+      expect(
+        service.shouldExclude('node_modules/package/index.js', [
+          'node_modules/**',
+        ]),
+      ).toBe(true);
     });
 
     it('should return false if file does not match any pattern', () => {
       expect(service.shouldExclude('src/app.ts', ['**/*.spec.ts'])).toBe(false);
-      expect(service.shouldExclude('src/utils.ts', ['node_modules/**'])).toBe(false);
+      expect(service.shouldExclude('src/utils.ts', ['node_modules/**'])).toBe(
+        false,
+      );
     });
 
     it('should handle multiple patterns', () => {
       const patterns = ['**/*.spec.ts', 'node_modules/**'];
       expect(service.shouldExclude('src/app.spec.ts', patterns)).toBe(true);
-      expect(service.shouldExclude('node_modules/package/index.js', patterns)).toBe(true);
+      expect(
+        service.shouldExclude('node_modules/package/index.js', patterns),
+      ).toBe(true);
       expect(service.shouldExclude('src/app.ts', patterns)).toBe(false);
     });
   });

@@ -18,9 +18,9 @@ describe('IndexerController (e2e)', () => {
     })
       .overrideProvider(GitlabService)
       .useValue({
-        fetchRepositoryTree: jest.fn().mockResolvedValue([
-          { path: 'src/main.ts', type: 'blob' },
-        ]),
+        fetchRepositoryTree: jest
+          .fn()
+          .mockResolvedValue([{ path: 'src/main.ts', type: 'blob' }]),
         fetchFileContent: jest.fn().mockResolvedValue(`
           export function hello() {
             console.log('world');
@@ -37,12 +37,12 @@ describe('IndexerController (e2e)', () => {
         createCollection: jest.fn().mockResolvedValue(undefined),
         upsertPoints: jest.fn().mockResolvedValue(undefined),
         search: jest.fn().mockResolvedValue([
-            {
-                score: 0.9,
-                payload: {
-                    text: 'hello world'
-                }
-            }
+          {
+            score: 0.9,
+            payload: {
+              text: 'hello world',
+            },
+          },
         ]),
       })
       .compile();
@@ -52,7 +52,8 @@ describe('IndexerController (e2e)', () => {
 
     gitlabService = moduleFixture.get<GitlabService>(GitlabService);
     embeddingService = moduleFixture.get<EmbeddingService>(EmbeddingService);
-    vectorStoreService = moduleFixture.get<VectorStoreService>(VectorStoreService);
+    vectorStoreService =
+      moduleFixture.get<VectorStoreService>(VectorStoreService);
   });
 
   it('/indexer/index (POST)', async () => {
@@ -70,11 +71,15 @@ describe('IndexerController (e2e)', () => {
       .post('/indexer/index')
       .send({ projectId: '123' })
       .expect(201);
-    
-    // Wait a bit for the background promise to run
-    await new Promise(resolve => setTimeout(resolve, 100));
 
-    expect(gitlabService.fetchRepositoryTree).toHaveBeenCalledWith('123', '', true);
+    // Wait a bit for the background promise to run
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(gitlabService.fetchRepositoryTree).toHaveBeenCalledWith(
+      '123',
+      '',
+      true,
+    );
     expect(gitlabService.fetchFileContent).toHaveBeenCalled();
     expect(vectorStoreService.createCollection).toHaveBeenCalled();
     expect(embeddingService.embedDocuments).toHaveBeenCalled();
@@ -88,11 +93,18 @@ describe('IndexerController (e2e)', () => {
       .expect(201);
 
     // Wait a bit for the background promise to run
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(gitlabService.fetchRepositoryTree).toHaveBeenCalledWith('123', '', true);
+    expect(gitlabService.fetchRepositoryTree).toHaveBeenCalledWith(
+      '123',
+      '',
+      true,
+    );
     // Since our mock returns src/main.ts, it should not be excluded
-    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith('123', 'src/main.ts');
+    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith(
+      '123',
+      'src/main.ts',
+    );
   });
 
   it('/indexer/index-files (POST)', async () => {
@@ -110,12 +122,15 @@ describe('IndexerController (e2e)', () => {
       .expect(201);
 
     // Wait a bit for the background promise to run
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Should NOT fetch tree
     expect(gitlabService.fetchRepositoryTree).not.toHaveBeenCalled();
-    
-    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith('123', 'src/main.ts');
+
+    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith(
+      '123',
+      'src/main.ts',
+    );
     expect(vectorStoreService.createCollection).toHaveBeenCalled();
     expect(embeddingService.embedDocuments).toHaveBeenCalled();
     expect(vectorStoreService.upsertPoints).toHaveBeenCalled();
@@ -127,14 +142,20 @@ describe('IndexerController (e2e)', () => {
       .send({
         projectId: '123',
         files: ['src/main.ts', 'src/main.spec.ts'],
-        excludePatterns: ['**/*.spec.ts']
+        excludePatterns: ['**/*.spec.ts'],
       })
       .expect(201);
 
     // Wait a bit for the background promise to run
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith('123', 'src/main.ts');
-    expect(gitlabService.fetchFileContent).not.toHaveBeenCalledWith('123', 'src/main.spec.ts');
+    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith(
+      '123',
+      'src/main.ts',
+    );
+    expect(gitlabService.fetchFileContent).not.toHaveBeenCalledWith(
+      '123',
+      'src/main.spec.ts',
+    );
   });
 });

@@ -20,7 +20,9 @@ export class RerankerService {
     this.modelName = this.configService.get<string>('app.reranker.modelName');
 
     if (this.isEnabled()) {
-      this.logger.log(`Reranker enabled using model: ${this.modelName} at ${this.url}`);
+      this.logger.log(
+        `Reranker enabled using model: ${this.modelName} at ${this.url}`,
+      );
     } else {
       this.logger.log('Reranker disabled (missing configuration)');
     }
@@ -30,13 +32,19 @@ export class RerankerService {
     return !!(this.url && this.modelName);
   }
 
-  async rerank(query: string, documents: string[], topK?: number): Promise<RerankResult[]> {
+  async rerank(
+    query: string,
+    documents: string[],
+    topK?: number,
+  ): Promise<RerankResult[]> {
     if (!this.isEnabled()) {
-      this.logger.warn('Rerank called but service is disabled. Returning original order.');
+      this.logger.warn(
+        'Rerank called but service is disabled. Returning original order.',
+      );
       return documents.map((_, index) => ({ index, score: 1 }));
     }
 
-    try {      
+    try {
       const response = await axios.post(
         `${this.url}/rerank`,
         {
@@ -62,7 +70,6 @@ export class RerankerService {
 
       this.logger.error('Unexpected reranker response format', response.data);
       return documents.map((_, index) => ({ index, score: 0 }));
-
     } catch (error) {
       this.logger.error(`Reranking failed: ${error.message}`, error.stack);
       // Fallback to original order on failure

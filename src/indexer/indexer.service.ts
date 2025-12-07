@@ -26,11 +26,19 @@ export class IndexerService {
     return patterns.some((pattern) => minimatch(filePath, pattern));
   }
 
-  async indexRepository(projectId: string, collectionName: string, excludePatterns: string[] = []): Promise<void> {
+  async indexRepository(
+    projectId: string,
+    collectionName: string,
+    excludePatterns: string[] = [],
+  ): Promise<void> {
     this.logger.log(`Starting indexing for project ${projectId}`);
 
     // 1. Fetch file list
-    const files = await this.gitlabService.fetchRepositoryTree(projectId, '', true);
+    const files = await this.gitlabService.fetchRepositoryTree(
+      projectId,
+      '',
+      true,
+    );
     const tsFiles = files.filter(
       (f: any) =>
         f.type === 'blob' &&
@@ -41,15 +49,25 @@ export class IndexerService {
     this.logger.log(`Found ${tsFiles.length} TypeScript files`);
 
     // Ensure collection exists
-    const vectorSize = this.configService.get<number>('app.embedding.vectorSize') || 1536;
+    const vectorSize =
+      this.configService.get<number>('app.embedding.vectorSize') || 1536;
     await this.vectorStoreService.createCollection(collectionName, vectorSize);
 
-    await this.processFiles(projectId, collectionName, tsFiles.map((f: any) => f.path));
+    await this.processFiles(
+      projectId,
+      collectionName,
+      tsFiles.map((f: any) => f.path),
+    );
 
     this.logger.log(`Indexing completed for project ${projectId}`);
   }
 
-  async indexFiles(projectId: string, collectionName: string, files: string[], excludePatterns: string[] = []): Promise<void> {
+  async indexFiles(
+    projectId: string,
+    collectionName: string,
+    files: string[],
+    excludePatterns: string[] = [],
+  ): Promise<void> {
     this.logger.log(`Starting selective indexing for project ${projectId}`);
 
     const filesToIndex = files.filter(
@@ -61,7 +79,8 @@ export class IndexerService {
     this.logger.log(`Found ${filesToIndex.length} files to index`);
 
     // Ensure collection exists
-    const vectorSize = this.configService.get<number>('app.embedding.vectorSize') || 1536;
+    const vectorSize =
+      this.configService.get<number>('app.embedding.vectorSize') || 1536;
     await this.vectorStoreService.createCollection(collectionName, vectorSize);
 
     await this.processFiles(projectId, collectionName, filesToIndex);
@@ -69,12 +88,19 @@ export class IndexerService {
     this.logger.log(`Selective indexing completed for project ${projectId}`);
   }
 
-  private async processFiles(projectId: string, collectionName: string, filePaths: string[]): Promise<void> {
+  private async processFiles(
+    projectId: string,
+    collectionName: string,
+    filePaths: string[],
+  ): Promise<void> {
     for (const filePath of filePaths) {
       this.logger.log(`Processing ${filePath}`);
       try {
         // 2. Fetch content
-        const content = await this.gitlabService.fetchFileContent(projectId, filePath);
+        const content = await this.gitlabService.fetchFileContent(
+          projectId,
+          filePath,
+        );
 
         // 3. Chunk
         const chunks = await this.chunkingService.parseFile(content, filePath);

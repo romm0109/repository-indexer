@@ -19,7 +19,8 @@ export class ChunkingService {
 
   constructor(private configService: ConfigService) {
     this.chunkSize = this.configService.get<number>('app.chunking.size') || 512;
-    this.chunkOverlap = this.configService.get<number>('app.chunking.overlap') || 64;
+    this.chunkOverlap =
+      this.configService.get<number>('app.chunking.overlap') || 64;
   }
 
   async parseFile(content: string, filePath: string): Promise<Chunk[]> {
@@ -53,7 +54,11 @@ export class ChunkingService {
     return this.processChunks(chunks);
   }
 
-  private createChunkFromNode(node: ts.Node, sourceFile: ts.SourceFile, filePath: string): Chunk | null {
+  private createChunkFromNode(
+    node: ts.Node,
+    sourceFile: ts.SourceFile,
+    filePath: string,
+  ): Chunk | null {
     let name = 'anonymous';
     let kind = 'unknown';
     let isExported = false;
@@ -71,11 +76,11 @@ export class ChunkingService {
       name = node.name?.getText(sourceFile) || 'anonymous';
       kind = 'type';
     } else if (ts.isVariableStatement(node)) {
-       const declaration = node.declarationList.declarations[0];
-       if (declaration && declaration.name) {
-           name = declaration.name.getText(sourceFile);
-           kind = 'variable';
-       }
+      const declaration = node.declarationList.declarations[0];
+      if (declaration && declaration.name) {
+        name = declaration.name.getText(sourceFile);
+        kind = 'variable';
+      }
     }
 
     // Check if exported
@@ -86,7 +91,9 @@ export class ChunkingService {
       }
     }
 
-    const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    const start = sourceFile.getLineAndCharacterOfPosition(
+      node.getStart(sourceFile),
+    );
     const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
 
     // Get full text including JSDoc comments if possible
@@ -179,9 +186,11 @@ export class ChunkingService {
 
       if (currentSize + lineTokens + headerTokens > this.chunkSize) {
         if (currentChunkLines.length > 0) {
-           subChunks.push({
+          subChunks.push({
             ...chunk,
-            content: (subChunks.length > 0 ? header + '\n' : '') + currentChunkLines.join('\n'),
+            content:
+              (subChunks.length > 0 ? header + '\n' : '') +
+              currentChunkLines.join('\n'),
             // Adjust start/end lines approximately
             startLine: chunk.startLine + i - currentChunkLines.length,
             endLine: chunk.startLine + i,
@@ -198,7 +207,9 @@ export class ChunkingService {
     if (currentChunkLines.length > 0) {
       subChunks.push({
         ...chunk,
-        content: (subChunks.length > 0 ? header + '\n' : '') + currentChunkLines.join('\n'),
+        content:
+          (subChunks.length > 0 ? header + '\n' : '') +
+          currentChunkLines.join('\n'),
         endLine: chunk.endLine,
       });
     }
@@ -208,7 +219,7 @@ export class ChunkingService {
 
   private mergeChunks(chunks: Chunk[]): Chunk {
     if (chunks.length === 0) {
-        throw new Error('Cannot merge empty chunks');
+      throw new Error('Cannot merge empty chunks');
     }
     if (chunks.length === 1) return chunks[0];
 
@@ -221,8 +232,8 @@ export class ChunkingService {
       symbolKind: 'group',
       startLine: first.startLine,
       endLine: last.endLine,
-      content: chunks.map(c => c.content).join('\n\n'),
-      isExported: chunks.some(c => c.isExported),
+      content: chunks.map((c) => c.content).join('\n\n'),
+      isExported: chunks.some((c) => c.isExported),
     };
   }
 }

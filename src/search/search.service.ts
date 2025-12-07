@@ -13,7 +13,7 @@ export class SearchService {
     private vectorStoreService: VectorStoreService,
     private rerankerService: RerankerService,
     private queryRefinementService: QueryRefinementService,
-  ) { }
+  ) {}
 
   async search(
     query: string,

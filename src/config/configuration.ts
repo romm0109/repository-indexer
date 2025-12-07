@@ -32,4 +32,10 @@ export default registerAs('app', () => ({
     apiKey: process.env.REFINE_API_KEY,
     modelName: process.env.REFINE_MODEL_NAME,
   },
+  mcp: {
+    enabled: process.env.MCP_ENABLED === 'true',
+    transport: process.env.MCP_TRANSPORT || 'stdio',
+    name: process.env.MCP_SERVER_NAME || 'code-indexer',
+    version: process.env.MCP_SERVER_VERSION || '1.0.0',
+  },
 }));

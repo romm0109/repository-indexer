@@ -9,6 +9,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
 import { VectorStoreModule } from './vector-store/vector-store.module';
 import { SearchModule } from './search/search.module';
 import { IndexerModule } from './indexer/indexer.module';
+import { McpModule } from './mcp/mcp.module';
 
 @Module({
   imports: [
@@ -22,6 +23,8 @@ import { IndexerModule } from './indexer/indexer.module';
     VectorStoreModule,
     SearchModule,
     IndexerModule,
+    // Conditionally load MCP module when enabled
+    ...(process.env.MCP_ENABLED === 'true' ? [McpModule.forRoot()] : []),
   ],
   controllers: [AppController],
   providers: [AppService],

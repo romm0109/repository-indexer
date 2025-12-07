@@ -9,7 +9,8 @@ export class GitlabService {
   private readonly axiosInstance: AxiosInstance;
 
   constructor(private configService: ConfigService) {
-    this.gitlabUrl = this.configService.get<string>('app.gitlab.url') ?? 'https://gitlab.com';
+    this.gitlabUrl =
+      this.configService.get<string>('app.gitlab.url') ?? 'https://gitlab.com';
     this.gitlabToken = this.configService.get<string>('app.gitlab.token') ?? '';
 
     this.axiosInstance = axios.create({
@@ -20,15 +21,22 @@ export class GitlabService {
     });
   }
 
-  async fetchRepositoryTree(projectId: string, path: string = '', recursive: boolean = true): Promise<any[]> {
+  async fetchRepositoryTree(
+    projectId: string,
+    path: string = '',
+    recursive: boolean = true,
+  ): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get(`/api/v4/projects/${encodeURIComponent(projectId)}/repository/tree`, {
-        params: {
-          path,
-          recursive,
-          per_page: 100, // Adjust pagination as needed
+      const response = await this.axiosInstance.get(
+        `/api/v4/projects/${encodeURIComponent(projectId)}/repository/tree`,
+        {
+          params: {
+            path,
+            recursive,
+            per_page: 100, // Adjust pagination as needed
+          },
         },
-      });
+      );
       return response.data;
     } catch (error) {
       throw new HttpException(

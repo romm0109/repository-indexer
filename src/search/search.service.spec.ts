@@ -44,7 +44,10 @@ describe('SearchService', () => {
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: VectorStoreService, useValue: mockVectorStoreService },
         { provide: RerankerService, useValue: mockRerankerService },
-        { provide: QueryRefinementService, useValue: mockQueryRefinementService },
+        {
+          provide: QueryRefinementService,
+          useValue: mockQueryRefinementService,
+        },
       ],
     }).compile();
 
@@ -79,7 +82,11 @@ describe('SearchService', () => {
 
     expect(result).toEqual(expectedResults);
     expect(mockEmbeddingService.embedQuery).toHaveBeenCalledWith(query);
-    expect(mockVectorStoreService.search).toHaveBeenCalledWith('codebase', queryVector, 10);
+    expect(mockVectorStoreService.search).toHaveBeenCalledWith(
+      'codebase',
+      queryVector,
+      10,
+    );
     expect(mockRerankerService.rerank).not.toHaveBeenCalled();
   });
 
@@ -108,7 +115,10 @@ describe('SearchService', () => {
     expect(result[1].text).toBe('doc1'); // doc1 was index 0, now second
     expect(result[1].score).toBe(0.85);
 
-    expect(mockRerankerService.rerank).toHaveBeenCalledWith(query, ['doc1', 'doc2']);
+    expect(mockRerankerService.rerank).toHaveBeenCalledWith(query, [
+      'doc1',
+      'doc2',
+    ]);
   });
 
   it('should handle empty search results gracefully', async () => {
@@ -127,8 +137,17 @@ describe('SearchService', () => {
       const textQuery = 'function test';
       const collectionName = 'test-collection';
       const fulltextResults = [
-        { id: '1', payload: { text: 'function test() {}', filePath: '/src/test.ts' } },
-        { id: '2', payload: { text: 'function testHelper() {}', filePath: '/src/helper.ts' } },
+        {
+          id: '1',
+          payload: { text: 'function test() {}', filePath: '/src/test.ts' },
+        },
+        {
+          id: '2',
+          payload: {
+            text: 'function testHelper() {}',
+            filePath: '/src/helper.ts',
+          },
+        },
       ];
 
       mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
@@ -137,7 +156,11 @@ describe('SearchService', () => {
 
       expect(result).toEqual([
         { id: '1', text: 'function test() {}', filePath: '/src/test.ts' },
-        { id: '2', text: 'function testHelper() {}', filePath: '/src/helper.ts' },
+        {
+          id: '2',
+          text: 'function testHelper() {}',
+          filePath: '/src/helper.ts',
+        },
       ]);
       expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
         collectionName,
@@ -153,12 +176,20 @@ describe('SearchService', () => {
       const payload = { language: 'typescript' };
       const topK = 5;
       const fulltextResults = [
-        { id: '1', payload: { text: 'class MyClass {}', language: 'typescript' } },
+        {
+          id: '1',
+          payload: { text: 'class MyClass {}', language: 'typescript' },
+        },
       ];
 
       mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
 
-      const result = await service.fulltextSearch(textQuery, collectionName, payload, topK);
+      const result = await service.fulltextSearch(
+        textQuery,
+        collectionName,
+        payload,
+        topK,
+      );
 
       expect(result).toEqual([
         { id: '1', text: 'class MyClass {}', language: 'typescript' },
@@ -209,7 +240,11 @@ describe('SearchService', () => {
 
       const result = await service.search(query, collections);
 
-      expect(mockVectorStoreService.search).toHaveBeenCalledWith(collections, queryVector, 10);
+      expect(mockVectorStoreService.search).toHaveBeenCalledWith(
+        collections,
+        queryVector,
+        10,
+      );
       expect(result).toHaveLength(2);
     });
 
@@ -233,7 +268,11 @@ describe('SearchService', () => {
 
       const result = await service.search(query, collections);
 
-      expect(mockVectorStoreService.search).toHaveBeenCalledWith(collections, queryVector, 10);
+      expect(mockVectorStoreService.search).toHaveBeenCalledWith(
+        collections,
+        queryVector,
+        10,
+      );
       expect(result[0].text).toBe('doc2');
       expect(result[0].score).toBe(0.95);
     });
@@ -252,7 +291,11 @@ describe('SearchService', () => {
 
       const result = await service.search(query, collection);
 
-      expect(mockVectorStoreService.search).toHaveBeenCalledWith(collection, queryVector, 10);
+      expect(mockVectorStoreService.search).toHaveBeenCalledWith(
+        collection,
+        queryVector,
+        10,
+      );
       expect(result).toHaveLength(1);
     });
   });
@@ -270,7 +313,11 @@ describe('SearchService', () => {
 
       const result = await service.searchByPayload(payload, collections);
 
-      expect(mockVectorStoreService.searchByPayload).toHaveBeenCalledWith(collections, payload, 10);
+      expect(mockVectorStoreService.searchByPayload).toHaveBeenCalledWith(
+        collections,
+        payload,
+        10,
+      );
       expect(result).toEqual(searchResults);
     });
 
@@ -285,7 +332,11 @@ describe('SearchService', () => {
 
       const result = await service.searchByPayload(payload, collection);
 
-      expect(mockVectorStoreService.searchByPayload).toHaveBeenCalledWith(collection, payload, 10);
+      expect(mockVectorStoreService.searchByPayload).toHaveBeenCalledWith(
+        collection,
+        payload,
+        10,
+      );
       expect(result).toEqual(searchResults);
     });
   });
@@ -295,8 +346,17 @@ describe('SearchService', () => {
       const textQuery = 'function test';
       const collections = ['collection1', 'collection2'];
       const fulltextResults = [
-        { id: '1', payload: { text: 'function test() {}', filePath: '/src/test.ts' } },
-        { id: '2', payload: { text: 'function testHelper() {}', filePath: '/src/helper.ts' } },
+        {
+          id: '1',
+          payload: { text: 'function test() {}', filePath: '/src/test.ts' },
+        },
+        {
+          id: '2',
+          payload: {
+            text: 'function testHelper() {}',
+            filePath: '/src/helper.ts',
+          },
+        },
       ];
 
       mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
@@ -317,12 +377,20 @@ describe('SearchService', () => {
       const collections = ['collection1', 'collection2'];
       const payload = { language: 'typescript' };
       const fulltextResults = [
-        { id: '1', payload: { text: 'class MyClass {}', language: 'typescript' } },
+        {
+          id: '1',
+          payload: { text: 'class MyClass {}', language: 'typescript' },
+        },
       ];
 
       mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
 
-      const result = await service.fulltextSearch(textQuery, collections, payload, 5);
+      const result = await service.fulltextSearch(
+        textQuery,
+        collections,
+        payload,
+        5,
+      );
 
       expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
         collections,

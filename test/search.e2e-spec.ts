@@ -63,7 +63,8 @@ describe('SearchController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
 
-    vectorStoreService = moduleFixture.get<VectorStoreService>(VectorStoreService);
+    vectorStoreService =
+      moduleFixture.get<VectorStoreService>(VectorStoreService);
   });
 
   afterEach(async () => {

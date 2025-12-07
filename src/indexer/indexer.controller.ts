@@ -24,7 +24,10 @@ export class IndexerController {
 
   @Post('index-files')
   @ApiOperation({ summary: 'Index specific files from a GitLab repository' })
-  @ApiResponse({ status: 201, description: 'Selective indexing started successfully.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Selective indexing started successfully.',
+  })
   async indexFiles(@Body() indexFilesDto: IndexFilesDto) {
     // Trigger indexing in background
     this.indexerService.indexFiles(

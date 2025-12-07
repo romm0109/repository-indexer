@@ -48,8 +48,17 @@ describe('VectorStoreService', () => {
       const collectionName = 'test-collection';
       const textQuery = 'function test';
       const mockPoints = [
-        { id: '1', payload: { text: 'function test() {}', filePath: '/src/test.ts' } },
-        { id: '2', payload: { text: 'function testHelper() {}', filePath: '/src/helper.ts' } },
+        {
+          id: '1',
+          payload: { text: 'function test() {}', filePath: '/src/test.ts' },
+        },
+        {
+          id: '2',
+          payload: {
+            text: 'function testHelper() {}',
+            filePath: '/src/helper.ts',
+          },
+        },
       ];
 
       mockQdrantClient.scroll.mockResolvedValue({ points: mockPoints });
@@ -57,8 +66,19 @@ describe('VectorStoreService', () => {
       const result = await service.fulltextSearch(collectionName, textQuery);
 
       expect(result).toEqual([
-        { id: '1', collectionName: 'test-collection', payload: { text: 'function test() {}', filePath: '/src/test.ts' } },
-        { id: '2', collectionName: 'test-collection', payload: { text: 'function testHelper() {}', filePath: '/src/helper.ts' } },
+        {
+          id: '1',
+          collectionName: 'test-collection',
+          payload: { text: 'function test() {}', filePath: '/src/test.ts' },
+        },
+        {
+          id: '2',
+          collectionName: 'test-collection',
+          payload: {
+            text: 'function testHelper() {}',
+            filePath: '/src/helper.ts',
+          },
+        },
       ]);
       expect(mockQdrantClient.scroll).toHaveBeenCalledWith(collectionName, {
         filter: {
@@ -80,15 +100,35 @@ describe('VectorStoreService', () => {
       const payload = { language: 'typescript', repository: 'my-repo' };
       const limit = 5;
       const mockPoints = [
-        { id: '1', payload: { text: 'class MyClass {}', language: 'typescript', repository: 'my-repo' } },
+        {
+          id: '1',
+          payload: {
+            text: 'class MyClass {}',
+            language: 'typescript',
+            repository: 'my-repo',
+          },
+        },
       ];
 
       mockQdrantClient.scroll.mockResolvedValue({ points: mockPoints });
 
-      const result = await service.fulltextSearch(collectionName, textQuery, payload, limit);
+      const result = await service.fulltextSearch(
+        collectionName,
+        textQuery,
+        payload,
+        limit,
+      );
 
       expect(result).toEqual([
-        { id: '1', collectionName: 'codebase', payload: { text: 'class MyClass {}', language: 'typescript', repository: 'my-repo' } },
+        {
+          id: '1',
+          collectionName: 'codebase',
+          payload: {
+            text: 'class MyClass {}',
+            language: 'typescript',
+            repository: 'my-repo',
+          },
+        },
       ]);
       expect(mockQdrantClient.scroll).toHaveBeenCalledWith(collectionName, {
         filter: {
@@ -121,9 +161,13 @@ describe('VectorStoreService', () => {
     });
 
     it('should throw HttpException on Qdrant error', async () => {
-      mockQdrantClient.scroll.mockRejectedValue(new Error('Qdrant connection failed'));
+      mockQdrantClient.scroll.mockRejectedValue(
+        new Error('Qdrant connection failed'),
+      );
 
-      await expect(service.fulltextSearch('codebase', 'test')).rejects.toThrow(HttpException);
+      await expect(service.fulltextSearch('codebase', 'test')).rejects.toThrow(
+        HttpException,
+      );
       await expect(service.fulltextSearch('codebase', 'test')).rejects.toThrow(
         'Failed to perform full-text search: Qdrant connection failed',
       );
@@ -147,11 +191,19 @@ describe('VectorStoreService', () => {
       const vector = [0.1, 0.2, 0.3];
       const mockResults1 = [
         { id: '1', score: 0.9, payload: { text: 'result from collection1' } },
-        { id: '2', score: 0.8, payload: { text: 'another result from collection1' } },
+        {
+          id: '2',
+          score: 0.8,
+          payload: { text: 'another result from collection1' },
+        },
       ];
       const mockResults2 = [
         { id: '3', score: 0.85, payload: { text: 'result from collection2' } },
-        { id: '4', score: 0.75, payload: { text: 'another result from collection2' } },
+        {
+          id: '4',
+          score: 0.75,
+          payload: { text: 'another result from collection2' },
+        },
       ];
 
       mockQdrantClient.search
@@ -187,8 +239,8 @@ describe('VectorStoreService', () => {
       const result = await service.search(collections, vector, 10);
 
       expect(result).toHaveLength(3);
-      expect(result.find(r => r.id === '1').score).toBe(0.9); // Higher score kept
-      expect(result.find(r => r.id === '1').payload.text).toBe('result 1');
+      expect(result.find((r) => r.id === '1').score).toBe(0.9); // Higher score kept
+      expect(result.find((r) => r.id === '1').payload.text).toBe('result 1');
     });
 
     it('should respect limit when aggregating multi-collection results', async () => {
@@ -226,7 +278,12 @@ describe('VectorStoreService', () => {
       const result = await service.search(collectionName, vector, 10);
 
       expect(result).toEqual([
-        { id: '1', score: 0.9, collectionName: 'single-collection', payload: { text: 'result 1' } },
+        {
+          id: '1',
+          score: 0.9,
+          collectionName: 'single-collection',
+          payload: { text: 'result 1' },
+        },
       ]);
       expect(mockQdrantClient.search).toHaveBeenCalledTimes(1);
       expect(mockQdrantClient.search).toHaveBeenCalledWith(collectionName, {
@@ -242,10 +299,18 @@ describe('VectorStoreService', () => {
       const collections = ['collection1', 'collection2'];
       const payload = { language: 'typescript' };
       const mockResults1 = [
-        { id: '1', score: 0.9, payload: { text: 'result 1', language: 'typescript' } },
+        {
+          id: '1',
+          score: 0.9,
+          payload: { text: 'result 1', language: 'typescript' },
+        },
       ];
       const mockResults2 = [
-        { id: '2', score: 0.8, payload: { text: 'result 2', language: 'typescript' } },
+        {
+          id: '2',
+          score: 0.8,
+          payload: { text: 'result 2', language: 'typescript' },
+        },
       ];
 
       mockQdrantClient.query
@@ -276,7 +341,7 @@ describe('VectorStoreService', () => {
       const result = await service.searchByPayload(collections, payload, 10);
 
       expect(result).toHaveLength(2);
-      expect(result.find(r => r.id === '1').score).toBe(0.9);
+      expect(result.find((r) => r.id === '1').score).toBe(0.9);
     });
   });
 
@@ -304,9 +369,7 @@ describe('VectorStoreService', () => {
     it('should deduplicate full-text search results across collections', async () => {
       const collections = ['collection1', 'collection2'];
       const textQuery = 'class';
-      const mockPoints1 = [
-        { id: '1', payload: { text: 'class MyClass {}' } },
-      ];
+      const mockPoints1 = [{ id: '1', payload: { text: 'class MyClass {}' } }];
       const mockPoints2 = [
         { id: '1', payload: { text: 'class MyClass {}' } },
         { id: '2', payload: { text: 'class OtherClass {}' } },
@@ -319,7 +382,7 @@ describe('VectorStoreService', () => {
       const result = await service.fulltextSearch(collections, textQuery);
 
       expect(result).toHaveLength(2);
-      expect(result.map(r => r.id)).toEqual(['1', '2']);
+      expect(result.map((r) => r.id)).toEqual(['1', '2']);
     });
 
     it('should apply payload filters to all collections in full-text search', async () => {

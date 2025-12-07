@@ -8,9 +8,9 @@ import { RerankerModule } from '../reranker/reranker.module';
 import { QueryRefinementService } from './query-refinement.service';
 
 @Module({
-    controllers: [SearchController],
-    imports: [ConfigModule, EmbeddingModule, VectorStoreModule, RerankerModule],
-    providers: [SearchService, QueryRefinementService],
-    exports: [SearchService],
+  controllers: [SearchController],
+  imports: [ConfigModule, EmbeddingModule, VectorStoreModule, RerankerModule],
+  providers: [SearchService, QueryRefinementService],
+  exports: [SearchService],
 })
-export class SearchModule { }
+export class SearchModule {}

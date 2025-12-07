@@ -42,11 +42,12 @@ export class VectorStoreService {
     try {
       await this.client.upsert(collectionName, {
         wait: true,
-        points
+        points,
       });
     } catch (error) {
       // Try to include any server-provided payload for easier debugging
-      const details = (error && (error.response?.data || error.message)) || String(error);
+      const details =
+        (error && (error.response?.data || error.message)) || String(error);
       throw new HttpException(
         `Failed to upsert points: ${JSON.stringify(details)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -57,7 +58,9 @@ export class VectorStoreService {
   /**
    * Normalize collection name(s) to always return an array
    */
-  private normalizeCollectionNames(collectionName: string | string[]): string[] {
+  private normalizeCollectionNames(
+    collectionName: string | string[],
+  ): string[] {
     return Array.isArray(collectionName) ? collectionName : [collectionName];
   }
 
@@ -66,21 +69,25 @@ export class VectorStoreService {
    */
   private deduplicateResults(results: any[]): any[] {
     const resultMap = new Map<string, any>();
-    
+
     for (const result of results) {
       const id = String(result.id);
       const existing = resultMap.get(id);
-      
+
       // Keep the result with the higher score
       if (!existing || result.score > existing.score) {
         resultMap.set(id, result);
       }
     }
-    
+
     return Array.from(resultMap.values());
   }
 
-  async search(collectionName: string | string[], vector: number[], limit: number = 10): Promise<any[]> {
+  async search(
+    collectionName: string | string[],
+    vector: number[],
+    limit: number = 10,
+  ): Promise<any[]> {
     try {
       const collections = this.normalizeCollectionNames(collectionName);
       const allResults: any[] = [];
@@ -93,7 +100,7 @@ export class VectorStoreService {
           with_payload: true,
         });
         // Add collection name to each result
-        const resultsWithCollection = result.map(r => ({
+        const resultsWithCollection = result.map((r) => ({
           ...r,
           collectionName: collection,
         }));
@@ -114,7 +121,11 @@ export class VectorStoreService {
     }
   }
 
-  async searchByPayload(collectionName: string | string[], payload: Record<string, any>, limit: number = 10): Promise<any[]> {
+  async searchByPayload(
+    collectionName: string | string[],
+    payload: Record<string, any>,
+    limit: number = 10,
+  ): Promise<any[]> {
     try {
       const collections = this.normalizeCollectionNames(collectionName);
       const allResults: any[] = [];
@@ -132,16 +143,18 @@ export class VectorStoreService {
 
       // Search each collection
       for (const collection of collections) {
-        const result = (await this.client.query(collection, {
-          filter: {
-            must: mustConditions,
-          },
-          limit,
-          with_payload: true,
-        })).points;
-        
+        const result = (
+          await this.client.query(collection, {
+            filter: {
+              must: mustConditions,
+            },
+            limit,
+            with_payload: true,
+          })
+        ).points;
+
         // Add collection name to each result
-        const resultsWithCollection = result.map(r => ({
+        const resultsWithCollection = result.map((r) => ({
           ...r,
           collectionName: collection,
         }));
@@ -150,7 +163,7 @@ export class VectorStoreService {
 
       // Deduplicate results
       const uniqueResults = this.deduplicateResults(allResults);
-      
+
       // Sort by score if available, otherwise maintain order
       if (uniqueResults.length > 0 && uniqueResults[0].score !== undefined) {
         uniqueResults.sort((a, b) => b.score - a.score);
@@ -169,7 +182,7 @@ export class VectorStoreService {
     collectionName: string | string[],
     textQuery: string,
     payload?: Record<string, any>,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<any[]> {
     try {
       const collections = this.normalizeCollectionNames(collectionName);
@@ -206,7 +219,7 @@ export class VectorStoreService {
         });
 
         // Add collection name to each result
-        const resultsWithCollection = result.points.map(r => ({
+        const resultsWithCollection = result.points.map((r) => ({
           ...r,
           collectionName: collection,
         }));
