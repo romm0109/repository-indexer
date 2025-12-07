@@ -13,7 +13,7 @@ export class SearchService {
     private vectorStoreService: VectorStoreService,
     private rerankerService: RerankerService,
     private queryRefinementService: QueryRefinementService,
-  ) {}
+  ) { }
 
   async search(
     query: string,
@@ -94,5 +94,19 @@ export class SearchService {
       score: result.score,
       ...result.payload,
     }));
+  }
+
+  async searchByPayload(
+    payloadQuery: Record<string, any>,
+    collectionName: string = 'codebase',
+    topK: number = 10,
+  ): Promise<any[]> {
+    const results = await this.vectorStoreService.searchByPayload(
+      collectionName,
+      payloadQuery,
+      topK,
+    );
+
+    return results;
   }
 }

@@ -69,4 +69,21 @@ export class VectorStoreService {
       );
     }
   }
+
+  async searchByPayload(collectionName: string, payload: Record<string, any>, limit: number = 10): Promise<any[]> {
+    try {
+      const result = (await this.client.query(collectionName, {
+        filter: payload,
+        limit,
+        with_payload: true,
+      })).points;
+      
+      return result;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to search: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
