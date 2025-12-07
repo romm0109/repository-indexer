@@ -80,4 +80,61 @@ describe('IndexerController (e2e)', () => {
     expect(embeddingService.embedDocuments).toHaveBeenCalled();
     expect(vectorStoreService.upsertPoints).toHaveBeenCalled();
   });
+
+  it('should handle exclusion patterns in /indexer/index', async () => {
+    await request(app.getHttpServer())
+      .post('/indexer/index')
+      .send({ projectId: '123', excludePatterns: ['**/*.spec.ts'] })
+      .expect(201);
+
+    // Wait a bit for the background promise to run
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(gitlabService.fetchRepositoryTree).toHaveBeenCalledWith('123', '', true);
+    // Since our mock returns src/main.ts, it should not be excluded
+    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith('123', 'src/main.ts');
+  });
+
+  it('/indexer/index-files (POST)', async () => {
+    return request(app.getHttpServer())
+      .post('/indexer/index-files')
+      .send({ projectId: '123', files: ['src/main.ts'] })
+      .expect(201)
+      .expect({ message: 'Selective indexing started' });
+  });
+
+  it('should trigger selective indexing flow', async () => {
+    await request(app.getHttpServer())
+      .post('/indexer/index-files')
+      .send({ projectId: '123', files: ['src/main.ts'] })
+      .expect(201);
+
+    // Wait a bit for the background promise to run
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Should NOT fetch tree
+    expect(gitlabService.fetchRepositoryTree).not.toHaveBeenCalled();
+    
+    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith('123', 'src/main.ts');
+    expect(vectorStoreService.createCollection).toHaveBeenCalled();
+    expect(embeddingService.embedDocuments).toHaveBeenCalled();
+    expect(vectorStoreService.upsertPoints).toHaveBeenCalled();
+  });
+
+  it('should handle exclusion patterns in /indexer/index-files', async () => {
+    await request(app.getHttpServer())
+      .post('/indexer/index-files')
+      .send({
+        projectId: '123',
+        files: ['src/main.ts', 'src/main.spec.ts'],
+        excludePatterns: ['**/*.spec.ts']
+      })
+      .expect(201);
+
+    // Wait a bit for the background promise to run
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(gitlabService.fetchFileContent).toHaveBeenCalledWith('123', 'src/main.ts');
+    expect(gitlabService.fetchFileContent).not.toHaveBeenCalledWith('123', 'src/main.spec.ts');
+  });
 });
