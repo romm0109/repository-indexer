@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { SearchService } from './search.service';
+import { ConfigModule } from '@nestjs/config';
+import { EmbeddingModule } from '../embedding/embedding.module';
+import { VectorStoreModule } from '../vector-store/vector-store.module';
+
+@Module({
+  imports: [ConfigModule, EmbeddingModule, VectorStoreModule],
+  providers: [SearchService],
+  exports: [SearchService],
+})
+export class SearchModule {}
