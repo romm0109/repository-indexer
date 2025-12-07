@@ -23,6 +23,7 @@ describe('SearchService', () => {
   const mockVectorStoreService = {
     search: jest.fn(),
     fulltextSearch: jest.fn(),
+    searchByPayload: jest.fn(),
   };
 
   const mockRerankerService = {
@@ -61,8 +62,8 @@ describe('SearchService', () => {
     const query = 'test query';
     const queryVector = [0.1, 0.2];
     const searchResults = [
-      { score: 0.9, payload: { content: 'doc1' } },
-      { score: 0.8, payload: { content: 'doc2' } },
+      { id: '1', score: 0.9, payload: { text: 'doc1' } },
+      { id: '2', score: 0.8, payload: { text: 'doc2' } },
     ];
 
     mockEmbeddingService.embedQuery.mockResolvedValue(queryVector);
@@ -72,13 +73,13 @@ describe('SearchService', () => {
     const result = await service.search(query);
 
     const expectedResults = [
-      { score: 0.9, content: 'doc1' },
-      { score: 0.8, content: 'doc2' },
+      { score: 0.9, text: 'doc1' },
+      { score: 0.8, text: 'doc2' },
     ];
 
     expect(result).toEqual(expectedResults);
     expect(mockEmbeddingService.embedQuery).toHaveBeenCalledWith(query);
-    expect(mockVectorStoreService.search).toHaveBeenCalledWith('codebase', queryVector);
+    expect(mockVectorStoreService.search).toHaveBeenCalledWith('codebase', queryVector, 10);
     expect(mockRerankerService.rerank).not.toHaveBeenCalled();
   });
 
@@ -86,8 +87,8 @@ describe('SearchService', () => {
     const query = 'test query';
     const queryVector = [0.1, 0.2];
     const searchResults = [
-      { score: 0.9, payload: { content: 'doc1' } },
-      { score: 0.8, payload: { content: 'doc2' } },
+      { id: '1', score: 0.9, payload: { text: 'doc1' } },
+      { id: '2', score: 0.8, payload: { text: 'doc2' } },
     ];
     const rerankedResults = [
       { index: 1, score: 0.95 },
@@ -102,9 +103,9 @@ describe('SearchService', () => {
     const result = await service.search(query);
 
     expect(result).toHaveLength(2);
-    expect(result[0].content).toBe('doc2'); // doc2 was index 1, now first
+    expect(result[0].text).toBe('doc2'); // doc2 was index 1, now first
     expect(result[0].score).toBe(0.95);
-    expect(result[1].content).toBe('doc1'); // doc1 was index 0, now second
+    expect(result[1].text).toBe('doc1'); // doc1 was index 0, now second
     expect(result[1].score).toBe(0.85);
 
     expect(mockRerankerService.rerank).toHaveBeenCalledWith(query, ['doc1', 'doc2']);
@@ -189,6 +190,167 @@ describe('SearchService', () => {
         undefined,
         10,
       );
+    });
+  });
+
+  describe('Multi-collection search', () => {
+    it('should search across multiple collections', async () => {
+      const query = 'test query';
+      const collections = ['collection1', 'collection2'];
+      const queryVector = [0.1, 0.2];
+      const searchResults = [
+        { id: '1', score: 0.9, payload: { text: 'doc1' } },
+        { id: '2', score: 0.8, payload: { text: 'doc2' } },
+      ];
+
+      mockEmbeddingService.embedQuery.mockResolvedValue(queryVector);
+      mockVectorStoreService.search.mockResolvedValue(searchResults);
+      mockRerankerService.isEnabled.mockReturnValue(false);
+
+      const result = await service.search(query, collections);
+
+      expect(mockVectorStoreService.search).toHaveBeenCalledWith(collections, queryVector, 10);
+      expect(result).toHaveLength(2);
+    });
+
+    it('should handle multi-collection search with reranking', async () => {
+      const query = 'test query';
+      const collections = ['collection1', 'collection2'];
+      const queryVector = [0.1, 0.2];
+      const searchResults = [
+        { id: '1', score: 0.9, payload: { text: 'doc1' } },
+        { id: '2', score: 0.8, payload: { text: 'doc2' } },
+      ];
+      const rerankedResults = [
+        { index: 1, score: 0.95 },
+        { index: 0, score: 0.85 },
+      ];
+
+      mockEmbeddingService.embedQuery.mockResolvedValue(queryVector);
+      mockVectorStoreService.search.mockResolvedValue(searchResults);
+      mockRerankerService.isEnabled.mockReturnValue(true);
+      mockRerankerService.rerank.mockResolvedValue(rerankedResults);
+
+      const result = await service.search(query, collections);
+
+      expect(mockVectorStoreService.search).toHaveBeenCalledWith(collections, queryVector, 10);
+      expect(result[0].text).toBe('doc2');
+      expect(result[0].score).toBe(0.95);
+    });
+
+    it('should support backward compatibility with single collection string', async () => {
+      const query = 'test query';
+      const collection = 'single-collection';
+      const queryVector = [0.1, 0.2];
+      const searchResults = [
+        { id: '1', score: 0.9, payload: { text: 'doc1' } },
+      ];
+
+      mockEmbeddingService.embedQuery.mockResolvedValue(queryVector);
+      mockVectorStoreService.search.mockResolvedValue(searchResults);
+      mockRerankerService.isEnabled.mockReturnValue(false);
+
+      const result = await service.search(query, collection);
+
+      expect(mockVectorStoreService.search).toHaveBeenCalledWith(collection, queryVector, 10);
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('Multi-collection searchByPayload', () => {
+    it('should search by payload across multiple collections', async () => {
+      const payload = { language: 'typescript' };
+      const collections = ['collection1', 'collection2'];
+      const searchResults = [
+        { id: '1', payload: { text: 'doc1', language: 'typescript' } },
+        { id: '2', payload: { text: 'doc2', language: 'typescript' } },
+      ];
+
+      mockVectorStoreService.searchByPayload.mockResolvedValue(searchResults);
+
+      const result = await service.searchByPayload(payload, collections);
+
+      expect(mockVectorStoreService.searchByPayload).toHaveBeenCalledWith(collections, payload, 10);
+      expect(result).toEqual(searchResults);
+    });
+
+    it('should handle single collection in searchByPayload', async () => {
+      const payload = { repository: 'my-repo' };
+      const collection = 'single-collection';
+      const searchResults = [
+        { id: '1', payload: { text: 'doc1', repository: 'my-repo' } },
+      ];
+
+      mockVectorStoreService.searchByPayload.mockResolvedValue(searchResults);
+
+      const result = await service.searchByPayload(payload, collection);
+
+      expect(mockVectorStoreService.searchByPayload).toHaveBeenCalledWith(collection, payload, 10);
+      expect(result).toEqual(searchResults);
+    });
+  });
+
+  describe('Multi-collection fulltextSearch', () => {
+    it('should perform full-text search across multiple collections', async () => {
+      const textQuery = 'function test';
+      const collections = ['collection1', 'collection2'];
+      const fulltextResults = [
+        { id: '1', payload: { text: 'function test() {}', filePath: '/src/test.ts' } },
+        { id: '2', payload: { text: 'function testHelper() {}', filePath: '/src/helper.ts' } },
+      ];
+
+      mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
+
+      const result = await service.fulltextSearch(textQuery, collections);
+
+      expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
+        collections,
+        textQuery,
+        undefined,
+        10,
+      );
+      expect(result).toHaveLength(2);
+    });
+
+    it('should perform full-text search with payload filters across collections', async () => {
+      const textQuery = 'class';
+      const collections = ['collection1', 'collection2'];
+      const payload = { language: 'typescript' };
+      const fulltextResults = [
+        { id: '1', payload: { text: 'class MyClass {}', language: 'typescript' } },
+      ];
+
+      mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
+
+      const result = await service.fulltextSearch(textQuery, collections, payload, 5);
+
+      expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
+        collections,
+        textQuery,
+        payload,
+        5,
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('should handle single collection in fulltextSearch', async () => {
+      const textQuery = 'function';
+      const collection = 'single-collection';
+      const fulltextResults = [
+        { id: '1', payload: { text: 'function test() {}' } },
+      ];
+
+      mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
+
+      const result = await service.fulltextSearch(textQuery, collection);
+
+      expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
+        collection,
+        textQuery,
+        undefined,
+        10,
+      );
+      expect(result).toHaveLength(1);
     });
   });
 });

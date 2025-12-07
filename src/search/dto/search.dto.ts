@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject, IsNumber, Min } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsNumber, Min, IsArray, ArrayMinSize, ValidateIf } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -7,9 +7,21 @@ export class SearchDto {
   @IsString()
   query: string;
 
-  @ApiProperty({ description: 'Name of the Qdrant collection' })
+  @ApiProperty({
+    description: 'Name of the Qdrant collection(s) to search. Can be a single collection name or an array of collection names.',
+    oneOf: [
+      { type: 'string' },
+      { type: 'array', items: { type: 'string' } }
+    ],
+    examples: ['my-collection', ['collection1', 'collection2']]
+  })
+  @ValidateIf((o) => !Array.isArray(o.collectionName))
   @IsString()
-  collectionName: string;
+  @ValidateIf((o) => Array.isArray(o.collectionName))
+  @IsArray()
+  @ArrayMinSize(1, { message: 'At least one collection name must be provided' })
+  @IsString({ each: true })
+  collectionName: string | string[];
 
   @ApiProperty({ description: 'Optional context to refine the search query', required: false })
   @IsString()
@@ -22,9 +34,21 @@ export class SearchDto {
 }
 
 export class PayloadSearchDto {
-  @ApiProperty({ description: 'Name of the Qdrant collection' })
+  @ApiProperty({
+    description: 'Name of the Qdrant collection(s) to search. Can be a single collection name or an array of collection names.',
+    oneOf: [
+      { type: 'string' },
+      { type: 'array', items: { type: 'string' } }
+    ],
+    examples: ['my-collection', ['collection1', 'collection2']]
+  })
+  @ValidateIf((o) => !Array.isArray(o.collectionName))
   @IsString()
-  collectionName: string;
+  @ValidateIf((o) => Array.isArray(o.collectionName))
+  @IsArray()
+  @ArrayMinSize(1, { message: 'At least one collection name must be provided' })
+  @IsString({ each: true })
+  collectionName: string | string[];
 
   @ApiProperty({ description: 'Number of results to return', required: false, default: 10 })
   @IsOptional()
@@ -40,9 +64,21 @@ export class FulltextSearchDto {
   @IsString()
   textQuery: string;
 
-  @ApiProperty({ description: 'Name of the Qdrant collection' })
+  @ApiProperty({
+    description: 'Name of the Qdrant collection(s) to search. Can be a single collection name or an array of collection names.',
+    oneOf: [
+      { type: 'string' },
+      { type: 'array', items: { type: 'string' } }
+    ],
+    examples: ['my-collection', ['collection1', 'collection2']]
+  })
+  @ValidateIf((o) => !Array.isArray(o.collectionName))
   @IsString()
-  collectionName: string;
+  @ValidateIf((o) => Array.isArray(o.collectionName))
+  @IsArray()
+  @ArrayMinSize(1, { message: 'At least one collection name must be provided' })
+  @IsString({ each: true })
+  collectionName: string | string[];
 
   @ApiProperty({
     description: 'Optional payload filters to narrow results (e.g., file path, repository, language)',

@@ -84,6 +84,7 @@ http://localhost:3000/api
 
 - **Indexer**: Fetches files from GitLab, chunks them, and stores embeddings.
 - **Semantic Search**: Queries the vector store using embeddings and returns relevant code snippets.
+- **Multi-Collection Search**: Search across multiple collections (repositories/projects) in a single query.
 - **Full-Text Search**: Search for exact or partial text matches within indexed code content.
 - **Query Refinement**: Optionally expands search queries using an LLM to improve recall.
 - **Reranker**: Improves search results using a reranking model.
@@ -93,26 +94,56 @@ http://localhost:3000/api
 ### Search Endpoints
 
 #### POST /search
-Semantic search using vector embeddings.
+Semantic search using vector embeddings. Supports searching across single or multiple collections.
 
-**Request Body:**
+**Request Body (Single Collection):**
 ```json
 {
-  "query": "string",
-  "collectionName": "string",
+  "query": "authentication function",
+  "collectionName": "my-repo",
   "prompt": "string (optional)",
   "top_k": 10
 }
 ```
 
-#### POST /search/fulltext
-Full-text search for exact or partial text matches within indexed code content.
-
-**Request Body:**
+**Request Body (Multiple Collections):**
 ```json
 {
-  "textQuery": "string",
-  "collectionName": "string",
+  "query": "authentication function",
+  "collectionName": ["repo1", "repo2", "repo3"],
+  "prompt": "string (optional)",
+  "top_k": 10
+}
+```
+
+**Parameters:**
+- `query` (required): The search query
+- `collectionName` (required): Single collection name (string) or multiple collection names (array of strings)
+- `prompt` (optional): Additional context to refine the search query
+- `top_k` (optional): Number of results to return (default: 10)
+
+**Response:**
+```json
+[
+  {
+    "score": 0.95,
+    "text": "function authenticate(user) { ... }",
+    "filePath": "/src/auth.ts",
+    "language": "typescript"
+  }
+]
+```
+
+**Note:** When searching multiple collections, results are automatically deduplicated by document ID, keeping the highest-scoring version of each document.
+
+#### POST /search/fulltext
+Full-text search for exact or partial text matches within indexed code content. Supports searching across single or multiple collections.
+
+**Request Body (Single Collection):**
+```json
+{
+  "textQuery": "function hello",
+  "collectionName": "my-repo",
   "payload": {
     "language": "typescript",
     "filePath": "/src/*"
@@ -121,9 +152,21 @@ Full-text search for exact or partial text matches within indexed code content.
 }
 ```
 
+**Request Body (Multiple Collections):**
+```json
+{
+  "textQuery": "function hello",
+  "collectionName": ["repo1", "repo2", "repo3"],
+  "payload": {
+    "language": "typescript"
+  },
+  "top_k": 10
+}
+```
+
 **Parameters:**
 - `textQuery` (required): The text to search for in code content
-- `collectionName` (required): Name of the Qdrant collection to search
+- `collectionName` (required): Single collection name (string) or multiple collection names (array of strings)
 - `payload` (optional): Filters to narrow results (e.g., by file path, repository, language)
 - `top_k` (optional): Number of results to return (default: 10)
 
@@ -131,27 +174,61 @@ Full-text search for exact or partial text matches within indexed code content.
 ```json
 [
   {
-    "id": "string",
-    "text": "function hello() { ... }",
+    "id": "1",
+    "text": "function hello() { console.log('world'); }",
     "filePath": "/src/main.ts",
-    "language": "typescript"
+    "language": "typescript",
+    "repository": "repo1"
   }
 ]
 ```
 
-#### POST /search/payload
-Search by payload filters only (without text matching).
+**Note:** When searching multiple collections, results are automatically deduplicated by document ID.
 
-**Request Body:**
+#### POST /search/payload
+Search by payload filters only (without text matching). Supports searching across single or multiple collections.
+
+**Request Body (Single Collection):**
 ```json
 {
-  "collectionName": "string",
+  "collectionName": "my-repo",
   "payload": {
     "filePath": "/src/utils.ts"
   },
   "top_k": 10
 }
 ```
+
+**Request Body (Multiple Collections):**
+```json
+{
+  "collectionName": ["repo1", "repo2", "repo3"],
+  "payload": {
+    "language": "typescript",
+    "repository": "my-org"
+  },
+  "top_k": 10
+}
+```
+
+**Parameters:**
+- `collectionName` (required): Single collection name (string) or multiple collection names (array of strings)
+- `payload` (required): Metadata filters to match (e.g., filePath, language, repository)
+- `top_k` (optional): Number of results to return (default: 10)
+
+**Response:**
+```json
+[
+  {
+    "id": "1",
+    "text": "export function utility() { ... }",
+    "filePath": "/src/utils.ts",
+    "language": "typescript"
+  }
+]
+```
+
+**Note:** When searching multiple collections, results are automatically deduplicated by document ID.
 
 ## Architecture
 

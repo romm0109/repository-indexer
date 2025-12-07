@@ -17,7 +17,7 @@ export class SearchService {
 
   async search(
     query: string,
-    collectionName: string = 'codebase',
+    collectionName: string | string[] = 'codebase',
     prompt?: string,
     topK: number = 10,
   ): Promise<any[]> {
@@ -78,6 +78,7 @@ export class SearchService {
 
         return rerankedResults.slice(0, topK).map((result) => ({
           score: result.score,
+          collectionName: result.collectionName,
           ...result.payload,
         }));
       }
@@ -92,13 +93,14 @@ export class SearchService {
 
     return uniqueResults.slice(0, topK).map((result) => ({
       score: result.score,
+      collectionName: result.collectionName,
       ...result.payload,
     }));
   }
 
   async searchByPayload(
     payloadQuery: Record<string, any>,
-    collectionName: string = 'codebase',
+    collectionName: string | string[] = 'codebase',
     topK: number = 10,
   ): Promise<any[]> {
     const results = await this.vectorStoreService.searchByPayload(
@@ -112,7 +114,7 @@ export class SearchService {
 
   async fulltextSearch(
     textQuery: string,
-    collectionName: string = 'codebase',
+    collectionName: string | string[] = 'codebase',
     payload?: Record<string, any>,
     topK: number = 10,
   ): Promise<any[]> {
@@ -125,6 +127,7 @@ export class SearchService {
 
     return results.map((result) => ({
       id: result.id,
+      collectionName: result.collectionName,
       ...result.payload,
     }));
   }

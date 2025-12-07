@@ -61,7 +61,7 @@ describe('RerankerService', () => {
     expect(result[1].index).toBe(0);
     expect(result[1].score).toBe(0.1);
     expect(mockedAxios.post).toHaveBeenCalledWith(
-      'http://reranker/v1/rerank',
+      'http://reranker/rerank',
       {
         model: 'model',
         query: query,
