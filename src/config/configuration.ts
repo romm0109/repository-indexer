@@ -22,4 +22,9 @@ export default registerAs('app', () => ({
     size: parseInt(process.env.CHUNK_SIZE ?? '256', 10),
     overlap: parseInt(process.env.CHUNK_OVERLAP ?? '32', 10),
   },
+  reranker: {
+    url: process.env.RERANKER_URL,
+    apiKey: process.env.RERANKER_API_KEY,
+    modelName: process.env.RERANKER_MODEL_NAME,
+  },
 }));

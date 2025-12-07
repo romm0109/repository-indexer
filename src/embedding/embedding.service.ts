@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { normalize } from 'src/utils';
+import { normalize } from '../utils';
 
 @Injectable()
 export class EmbeddingService {
