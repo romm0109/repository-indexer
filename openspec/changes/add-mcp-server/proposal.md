@@ -9,9 +9,10 @@ The code-indexer service currently exposes search capabilities only through HTTP
   - `search_code_semantic` - Semantic search using vector embeddings (parameters: query, prompt, top_k)
   - `search_code_fulltext` - Full-text search for exact/partial matches (parameters: textQuery, payload, top_k)
   - `search_code_by_payload` - Search by metadata filters only (parameters: payload, top_k)
-- **Collection configuration in MCP client**: collectionName(s) are configured in the MCP client configuration file, not passed as tool parameters
+- **Collection configuration in MCP client**: collectionName(s) are passed as initialization arguments by the MCP client, not as tool parameters
 - Implement MCP protocol handlers for tool discovery and execution
-- Add configuration for MCP server transport (stdio/SSE) and default collection(s)
+- Add configuration for MCP server transport (stdio/SSE)
+- Support client-specific collection selection via initialization arguments
 - **Zero impact on existing code** - MCP module only loads when enabled
 - Maintain complete backward compatibility with existing REST API
 
@@ -20,12 +21,14 @@ The code-indexer service currently exposes search capabilities only through HTTP
 - **Affected code**:
   - New module: `src/mcp/` (completely isolated MCP implementation)
   - Minimal change: `src/app.module.ts` (conditional import of McpModule)
-  - Configuration: `src/config/configuration.ts` (MCP settings including default collections)
+  - Configuration: `src/config/configuration.ts` (MCP server settings)
   - Dependencies: `package.json` (add `@modelcontextprotocol/sdk`)
 - **Existing code impact**: **NONE** - when MCP is disabled, no MCP code loads
 - **Breaking changes**: None - this is purely additive and isolated
 - **Benefits**:
-  - AI assistants can directly query the codebase
+  - AI assistants can directly query the deployed codebase
+  - Multiple clients can connect to the same server with different collection configurations
   - Reduced integration complexity for MCP clients
   - Dual-mode operation (HTTP + MCP) with zero interference
   - Can be completely removed without affecting the application
+  - Client-specific collection selection without server reconfiguration

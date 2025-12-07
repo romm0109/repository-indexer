@@ -68,30 +68,48 @@ The service currently has three search endpoints that would be valuable as MCP t
 - `search_code_by_payload` → [`POST /search/payload`](src/search/search.controller.ts:25)
 
 ### Collection Configuration Strategy
-**Decision:** Configure collection names in the MCP server configuration, not as tool parameters.
+**Decision:** Configure collection names in the MCP client configuration, not as tool parameters.
 
 **Rationale:**
 - Simplifies tool invocation for AI assistants - they only need to provide search criteria
-- Collection configuration is typically static per deployment/client
+- Collection selection is client-specific, not server-specific
 - Reduces parameter complexity and potential errors
-- Follows MCP best practice of configuring server-specific settings in client config
-- Allows supporting both single collection and multi-collection scenarios via configuration
+- Follows MCP best practice of configuring client-specific settings in client config
+- Allows different MCP clients to search different collections on the same deployed server
+- Supports both single collection and multi-collection scenarios per client
 
 **Implementation:**
-- Add `collectionName` or `collectionNames` to MCP configuration
+- MCP client configuration includes `collectionName` or `collectionNames` as arguments
 - MCP tools receive only search-specific parameters (query, textQuery, payload, top_k)
-- MCP service injects configured collection(s) when calling SearchService
-- Client configuration example:
+- MCP server reads collection(s) from initialization arguments passed by the client
+- Client configuration example (for Claude Desktop connecting to deployed server):
   ```json
   {
     "mcpServers": {
       "code-indexer": {
-        "command": "node",
-        "args": ["dist/main.js"],
-        "env": {
-          "MCP_ENABLED": "true",
-          "MCP_COLLECTION_NAME": "my-repo"
-        }
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-stdio",
+          "http://your-deployed-server.com",
+          "--collection", "my-repo"
+        ]
+      }
+    }
+  }
+  ```
+  Or for multiple collections:
+  ```json
+  {
+    "mcpServers": {
+      "code-indexer": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-stdio",
+          "http://your-deployed-server.com",
+          "--collections", "repo1,repo2,repo3"
+        ]
       }
     }
   }
@@ -99,6 +117,7 @@ The service currently has three search endpoints that would be valuable as MCP t
 
 **Alternatives considered:**
 - Pass collectionName as tool parameter: More flexible but adds complexity for every tool call
+- Configure in server environment: Inflexible - all clients would search the same collections
 - Hard-code collection name: Too inflexible for multi-tenant or multi-repo scenarios
 
 ### Module Structure
@@ -165,7 +184,7 @@ export class McpModule {
 - Complete isolation of MCP concerns
 
 ### Configuration
-**Decision:** Add MCP configuration to existing [`configuration.ts`](src/config/configuration.ts:1).
+**Decision:** Add MCP configuration to existing [`configuration.ts`](src/config/configuration.ts:1) for server settings, and accept collection configuration from client initialization arguments.
 
 **Configuration schema:**
 ```typescript
@@ -174,23 +193,27 @@ mcp: {
   transport: 'stdio' | 'sse';          // Transport type
   name: string;                        // Server name for MCP clients
   version: string;                     // Server version
-  collectionName?: string;             // Single collection to search (optional)
-  collectionNames?: string[];          // Multiple collections to search (optional)
 }
 ```
 
+**Client initialization arguments:**
+- `--collection <name>`: Single collection to search
+- `--collections <name1,name2,...>`: Multiple collections to search (comma-separated)
+
 **Configuration rules:**
-- If `collectionName` is set, all tools search that single collection
-- If `collectionNames` is set, tools search across multiple collections
-- If both are set, `collectionNames` takes precedence
-- If neither is set, tools will fail with a configuration error
+- MCP server reads collection(s) from initialization arguments provided by the client
+- If `--collections` is provided, tools search across multiple collections
+- If `--collection` is provided, tools search that single collection
+- If both are provided, `--collections` takes precedence
+- If neither is provided, tools will fail with a configuration error
 
 **Rationale:**
-- Centralized configuration management
-- Environment-based control
+- Centralized server configuration management
+- Client-specific collection selection via initialization arguments
 - Consistent with existing config patterns
-- Supports both single and multi-collection scenarios
-- Collection configuration is deployment-specific, not request-specific
+- Supports both single and multi-collection scenarios per client
+- Multiple clients can connect to the same deployed server and search different collections
+- Collection configuration is client-specific, not server-specific
 
 ### Error Handling
 **Decision:** Map NestJS exceptions to MCP error responses.

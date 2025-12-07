@@ -32,8 +32,8 @@ The system MUST provide a `search_code_semantic` tool that performs semantic sea
   - `query` (required): natural language search query
   - `prompt` (optional): context for query refinement
   - `top_k` (optional): number of results to return (default: 10)
-- **THEN** the tool SHALL use the configured collection name(s) from MCP configuration
-- **AND** invoke the existing search service with the query and configured collection(s)
+- **THEN** the tool SHALL use the collection name(s) provided during client initialization
+- **AND** invoke the existing search service with the query and client's collection(s)
 - **AND** return results with score and code snippet payload
 - **AND** apply reranking if enabled
 
@@ -42,10 +42,10 @@ The system MUST provide a `search_code_semantic` tool that performs semantic sea
 - **THEN** the tool SHALL return an MCP error with code -32602 (Invalid params)
 - **AND** include a descriptive error message
 
-#### Scenario: Semantic Search without Collection Configuration
-- **WHEN** an MCP client calls `search_code_semantic` but no collection is configured
-- **THEN** the tool SHALL return an MCP error with code -32603 (Internal error)
-- **AND** include a message indicating collection configuration is required
+#### Scenario: Semantic Search without Collection Initialization
+- **WHEN** an MCP client connects without providing collection initialization arguments
+- **THEN** tool calls SHALL return an MCP error with code -32603 (Internal error)
+- **AND** include a message indicating collection must be specified during client initialization
 
 ### Requirement: Full-Text Search Tool
 The system MUST provide a `search_code_fulltext` tool that performs exact or partial text matching.
@@ -55,14 +55,14 @@ The system MUST provide a `search_code_fulltext` tool that performs exact or par
   - `textQuery` (required): text to search for in code content
   - `payload` (optional): filters to narrow results
   - `top_k` (optional): number of results to return (default: 10)
-- **THEN** the tool SHALL use the configured collection name(s) from MCP configuration
+- **THEN** the tool SHALL use the collection name(s) provided during client initialization
 - **AND** invoke the existing full-text search service
 - **AND** return matching code snippets with metadata
 
 #### Scenario: Full-Text Search with Payload Filters
 - **WHEN** an MCP client calls `search_code_fulltext` with payload filters like `{"language": "typescript"}`
 - **THEN** the tool SHALL apply the filters to narrow results
-- **AND** use the configured collection name(s)
+- **AND** use the collection name(s) from client initialization
 - **AND** return only code snippets matching both text query and filters
 
 ### Requirement: Payload Search Tool
@@ -72,13 +72,13 @@ The system MUST provide a `search_code_by_payload` tool that searches by metadat
 - **WHEN** an MCP client calls `search_code_by_payload` with parameters:
   - `payload` (required): metadata filters to match
   - `top_k` (optional): number of results to return (default: 10)
-- **THEN** the tool SHALL use the configured collection name(s) from MCP configuration
+- **THEN** the tool SHALL use the collection name(s) provided during client initialization
 - **AND** invoke the existing payload search service
 - **AND** return code snippets matching the metadata filters
 
 #### Scenario: Search by File Path Pattern
 - **WHEN** an MCP client calls `search_code_by_payload` with `{"filePath": "/src/search/*"}`
-- **THEN** the tool SHALL use the configured collection name(s)
+- **THEN** the tool SHALL use the collection name(s) from client initialization
 - **AND** return all indexed code from files matching the path pattern
 
 ### Requirement: Error Handling
@@ -103,7 +103,7 @@ The system MUST gracefully shut down both HTTP and MCP servers when the applicat
 - **AND** both servers SHALL shut down cleanly
 
 ### Requirement: Configuration
-The system MUST support configuration of MCP server behavior via environment variables.
+The system MUST support configuration of MCP server behavior via environment variables and client initialization arguments.
 
 #### Scenario: Configure MCP Server
 - **WHEN** the application reads configuration
@@ -112,21 +112,24 @@ The system MUST support configuration of MCP server behavior via environment var
   - `MCP_TRANSPORT`: transport type (default: stdio)
   - `MCP_SERVER_NAME`: server name for MCP clients (default: code-indexer)
   - `MCP_SERVER_VERSION`: server version (default: from package.json)
-  - `MCP_COLLECTION_NAME`: single collection to search (optional)
-  - `MCP_COLLECTION_NAMES`: comma-separated list of collections to search (optional)
 
-#### Scenario: Configure Single Collection
-- **WHEN** the application starts with `MCP_COLLECTION_NAME=my-repo`
-- **THEN** all MCP tools SHALL search only the "my-repo" collection
+#### Scenario: Client Initializes with Single Collection
+- **WHEN** an MCP client connects with initialization argument `--collection my-repo`
+- **THEN** all tools for that client SHALL search only the "my-repo" collection
 
-#### Scenario: Configure Multiple Collections
-- **WHEN** the application starts with `MCP_COLLECTION_NAMES=repo1,repo2,repo3`
-- **THEN** all MCP tools SHALL search across "repo1", "repo2", and "repo3" collections
+#### Scenario: Client Initializes with Multiple Collections
+- **WHEN** an MCP client connects with initialization argument `--collections repo1,repo2,repo3`
+- **THEN** all tools for that client SHALL search across "repo1", "repo2", and "repo3" collections
 
-#### Scenario: Missing Collection Configuration
-- **WHEN** the application starts with MCP enabled but no collection configured
-- **THEN** MCP tools SHALL return an error when invoked
-- **AND** the error SHALL indicate that collection configuration is required
+#### Scenario: Client Connects without Collection Arguments
+- **WHEN** an MCP client connects without `--collection` or `--collections` arguments
+- **THEN** tool calls from that client SHALL return an error
+- **AND** the error SHALL indicate that collection must be specified during initialization
+
+#### Scenario: Multiple Clients with Different Collections
+- **WHEN** multiple MCP clients connect to the same server with different collection arguments
+- **THEN** each client SHALL search only their specified collection(s)
+- **AND** clients SHALL NOT interfere with each other's collection configuration
 
 ### Requirement: Testing
 The MCP server functionality MUST be verifiable via unit and integration tests.
