@@ -13,7 +13,11 @@ export class SearchController {
   @ApiResponse({ status: 200, description: 'Search results returned successfully.' })
   async search(@Body() searchDto: SearchDto) {
     try {
-      return this.searchService.search(searchDto.query, searchDto.collectionName);
+      return this.searchService.search(
+        searchDto.query,
+        searchDto.collectionName,
+        searchDto.prompt,
+      );
     } catch (error) {}
   }
 }

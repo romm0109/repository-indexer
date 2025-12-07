@@ -5,11 +5,12 @@ import { EmbeddingModule } from '../embedding/embedding.module';
 import { VectorStoreModule } from '../vector-store/vector-store.module';
 import { SearchController } from './search.controller';
 import { RerankerModule } from '../reranker/reranker.module';
+import { QueryRefinementService } from './query-refinement.service';
 
 @Module({
     controllers: [SearchController],
     imports: [ConfigModule, EmbeddingModule, VectorStoreModule, RerankerModule],
-    providers: [SearchService],
+    providers: [SearchService, QueryRefinementService],
     exports: [SearchService],
 })
 export class SearchModule { }

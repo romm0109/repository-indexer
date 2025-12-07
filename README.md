@@ -47,6 +47,11 @@ This project indexes source code from GitLab repositories into a vector database
     # Qdrant
     QDRANT_URL=http://localhost:6333
     QDRANT_API_KEY=your_qdrant_api_key # Optional
+
+    # Query Refinement (Optional)
+    REFINE_URL=https://api.openai.com/v1 # Or other compatible provider
+    REFINE_API_KEY=your_openai_api_key
+    REFINE_MODEL_NAME=gpt-4o-mini
     ```
 
 4.  **Run Qdrant:**
@@ -79,6 +84,7 @@ http://localhost:3000/api
 
 - **Indexer**: Fetches files from GitLab, chunks them, and stores embeddings.
 - **Search**: Queries the vector store and returns relevant code snippets.
+- **Query Refinement**: Optionally expands search queries using an LLM to improve recall.
 - **Reranker**: Improves search results using a reranking model.
 
 ## Architecture

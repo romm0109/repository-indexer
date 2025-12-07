@@ -27,4 +27,9 @@ export default registerAs('app', () => ({
     apiKey: process.env.RERANKER_API_KEY,
     modelName: process.env.RERANKER_MODEL_NAME,
   },
+  refine: {
+    url: process.env.REFINE_URL,
+    apiKey: process.env.REFINE_API_KEY,
+    modelName: process.env.REFINE_MODEL_NAME,
+  },
 }));
