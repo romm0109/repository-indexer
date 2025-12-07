@@ -14,4 +14,8 @@ export class SearchDto {
   @IsString()
   @IsOptional()
   prompt?: string;
+
+  @ApiProperty({ description: 'Number of results to return', required: false, default: 10 })
+  @IsOptional()
+  top_k?: number;
 }

@@ -19,6 +19,7 @@ export class SearchService {
     query: string,
     collectionName: string = 'codebase',
     prompt?: string,
+    topK: number = 10,
   ): Promise<any[]> {
     let queriesToSearch = [query];
 
@@ -38,6 +39,7 @@ export class SearchService {
       const results = await this.vectorStoreService.search(
         collectionName,
         queryVector,
+        topK,
       );
 
       for (const result of results) {
@@ -74,7 +76,7 @@ export class SearchService {
         // Sort by new score descending
         rerankedResults.sort((a, b) => b.score - a.score);
 
-        return rerankedResults.map((result) => ({
+        return rerankedResults.slice(0, topK).map((result) => ({
           score: result.score,
           ...result.payload,
         }));
@@ -88,7 +90,7 @@ export class SearchService {
     // or just as is.
     uniqueResults.sort((a, b) => b.score - a.score);
 
-    return uniqueResults.map((result) => ({
+    return uniqueResults.slice(0, topK).map((result) => ({
       score: result.score,
       ...result.payload,
     }));

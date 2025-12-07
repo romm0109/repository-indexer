@@ -17,6 +17,7 @@ export class SearchController {
         searchDto.query,
         searchDto.collectionName,
         searchDto.prompt,
+        searchDto.top_k,
       );
     } catch (error) {}
   }
