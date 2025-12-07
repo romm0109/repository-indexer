@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsNumber, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class SearchDto {
   @ApiProperty({ description: 'Search query' })
@@ -32,4 +33,34 @@ export class PayloadSearchDto {
   @ApiProperty({ description: 'Payload data to search for' })
   @IsObject()
   payload: Record<string, any>;
+}
+
+export class FulltextSearchDto {
+  @ApiProperty({ description: 'Text query to search for in code content' })
+  @IsString()
+  textQuery: string;
+
+  @ApiProperty({ description: 'Name of the Qdrant collection' })
+  @IsString()
+  collectionName: string;
+
+  @ApiProperty({
+    description: 'Optional payload filters to narrow results (e.g., file path, repository, language)',
+    required: false
+  })
+  @IsObject()
+  @IsOptional()
+  payload?: Record<string, any>;
+
+  @ApiProperty({
+    description: 'Number of results to return',
+    required: false,
+    default: 10,
+    minimum: 1
+  })
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  @Type(() => Number)
+  top_k?: number;
 }

@@ -109,4 +109,23 @@ export class SearchService {
 
     return results;
   }
+
+  async fulltextSearch(
+    textQuery: string,
+    collectionName: string = 'codebase',
+    payload?: Record<string, any>,
+    topK: number = 10,
+  ): Promise<any[]> {
+    const results = await this.vectorStoreService.fulltextSearch(
+      collectionName,
+      textQuery,
+      payload,
+      topK,
+    );
+
+    return results.map((result) => ({
+      id: result.id,
+      ...result.payload,
+    }));
+  }
 }

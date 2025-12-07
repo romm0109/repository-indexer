@@ -83,9 +83,75 @@ http://localhost:3000/api
 ## Key Features
 
 - **Indexer**: Fetches files from GitLab, chunks them, and stores embeddings.
-- **Search**: Queries the vector store and returns relevant code snippets.
+- **Semantic Search**: Queries the vector store using embeddings and returns relevant code snippets.
+- **Full-Text Search**: Search for exact or partial text matches within indexed code content.
 - **Query Refinement**: Optionally expands search queries using an LLM to improve recall.
 - **Reranker**: Improves search results using a reranking model.
+
+## API Endpoints
+
+### Search Endpoints
+
+#### POST /search
+Semantic search using vector embeddings.
+
+**Request Body:**
+```json
+{
+  "query": "string",
+  "collectionName": "string",
+  "prompt": "string (optional)",
+  "top_k": 10
+}
+```
+
+#### POST /search/fulltext
+Full-text search for exact or partial text matches within indexed code content.
+
+**Request Body:**
+```json
+{
+  "textQuery": "string",
+  "collectionName": "string",
+  "payload": {
+    "language": "typescript",
+    "filePath": "/src/*"
+  },
+  "top_k": 10
+}
+```
+
+**Parameters:**
+- `textQuery` (required): The text to search for in code content
+- `collectionName` (required): Name of the Qdrant collection to search
+- `payload` (optional): Filters to narrow results (e.g., by file path, repository, language)
+- `top_k` (optional): Number of results to return (default: 10)
+
+**Response:**
+```json
+[
+  {
+    "id": "string",
+    "text": "function hello() { ... }",
+    "filePath": "/src/main.ts",
+    "language": "typescript"
+  }
+]
+```
+
+#### POST /search/payload
+Search by payload filters only (without text matching).
+
+**Request Body:**
+```json
+{
+  "collectionName": "string",
+  "payload": {
+    "filePath": "/src/utils.ts"
+  },
+  "top_k": 10
+}
+```
 
 ## Architecture
 

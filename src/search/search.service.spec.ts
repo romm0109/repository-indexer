@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { VectorStoreService } from '../vector-store/vector-store.service';
 import { RerankerService } from '../reranker/reranker.service';
+import { QueryRefinementService } from './query-refinement.service';
 
 describe('SearchService', () => {
   let service: SearchService;
@@ -21,11 +22,16 @@ describe('SearchService', () => {
 
   const mockVectorStoreService = {
     search: jest.fn(),
+    fulltextSearch: jest.fn(),
   };
 
   const mockRerankerService = {
     isEnabled: jest.fn(),
     rerank: jest.fn(),
+  };
+
+  const mockQueryRefinementService = {
+    refineQuery: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -37,6 +43,7 @@ describe('SearchService', () => {
         { provide: EmbeddingService, useValue: mockEmbeddingService },
         { provide: VectorStoreService, useValue: mockVectorStoreService },
         { provide: RerankerService, useValue: mockRerankerService },
+        { provide: QueryRefinementService, useValue: mockQueryRefinementService },
       ],
     }).compile();
 
@@ -112,5 +119,76 @@ describe('SearchService', () => {
 
     expect(result).toEqual([]);
     expect(mockRerankerService.rerank).not.toHaveBeenCalled();
+  });
+
+  describe('fulltextSearch', () => {
+    it('should perform full-text search and return formatted results', async () => {
+      const textQuery = 'function test';
+      const collectionName = 'test-collection';
+      const fulltextResults = [
+        { id: '1', payload: { text: 'function test() {}', filePath: '/src/test.ts' } },
+        { id: '2', payload: { text: 'function testHelper() {}', filePath: '/src/helper.ts' } },
+      ];
+
+      mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
+
+      const result = await service.fulltextSearch(textQuery, collectionName);
+
+      expect(result).toEqual([
+        { id: '1', text: 'function test() {}', filePath: '/src/test.ts' },
+        { id: '2', text: 'function testHelper() {}', filePath: '/src/helper.ts' },
+      ]);
+      expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
+        collectionName,
+        textQuery,
+        undefined,
+        10,
+      );
+    });
+
+    it('should perform full-text search with payload filters', async () => {
+      const textQuery = 'class';
+      const collectionName = 'codebase';
+      const payload = { language: 'typescript' };
+      const topK = 5;
+      const fulltextResults = [
+        { id: '1', payload: { text: 'class MyClass {}', language: 'typescript' } },
+      ];
+
+      mockVectorStoreService.fulltextSearch.mockResolvedValue(fulltextResults);
+
+      const result = await service.fulltextSearch(textQuery, collectionName, payload, topK);
+
+      expect(result).toEqual([
+        { id: '1', text: 'class MyClass {}', language: 'typescript' },
+      ]);
+      expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
+        collectionName,
+        textQuery,
+        payload,
+        topK,
+      );
+    });
+
+    it('should return empty array when no matches found', async () => {
+      mockVectorStoreService.fulltextSearch.mockResolvedValue([]);
+
+      const result = await service.fulltextSearch('nonexistent', 'codebase');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should use default collection name and topK when not provided', async () => {
+      mockVectorStoreService.fulltextSearch.mockResolvedValue([]);
+
+      await service.fulltextSearch('query');
+
+      expect(mockVectorStoreService.fulltextSearch).toHaveBeenCalledWith(
+        'codebase',
+        'query',
+        undefined,
+        10,
+      );
+    });
   });
 });

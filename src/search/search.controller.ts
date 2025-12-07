@@ -1,6 +1,6 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { SearchService } from './search.service';
-import { PayloadSearchDto, SearchDto } from './dto/search.dto';
+import { FulltextSearchDto, PayloadSearchDto, SearchDto } from './dto/search.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('search')
@@ -23,7 +23,7 @@ export class SearchController {
   }
 
   @Post('/payload')
-  @ApiOperation({ summary: 'Search for code snippets' })
+  @ApiOperation({ summary: 'Search for code snippets by payload filters' })
   @ApiResponse({ status: 200, description: 'Search results returned successfully.' })
   async searchByPayload(@Body() searchDto: PayloadSearchDto) {
     try {
@@ -33,5 +33,27 @@ export class SearchController {
         searchDto.top_k,
       );
     } catch (error) { }
+  }
+
+  @Post('/fulltext')
+  @ApiOperation({
+    summary: 'Full-text search for code snippets',
+    description: 'Search for exact or partial text matches within indexed code content. Supports optional payload filters to narrow results by file path, repository, language, etc.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Full-text search results returned successfully.'
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - missing required fields (textQuery or collectionName).'
+  })
+  async fulltextSearch(@Body() searchDto: FulltextSearchDto) {
+    return this.searchService.fulltextSearch(
+      searchDto.textQuery,
+      searchDto.collectionName,
+      searchDto.payload,
+      searchDto.top_k,
+    );
   }
 }
