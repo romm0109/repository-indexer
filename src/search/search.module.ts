@@ -3,10 +3,12 @@ import { SearchService } from './search.service';
 import { ConfigModule } from '@nestjs/config';
 import { EmbeddingModule } from '../embedding/embedding.module';
 import { VectorStoreModule } from '../vector-store/vector-store.module';
+import { SearchController } from './search.controller';
 
 @Module({
-  imports: [ConfigModule, EmbeddingModule, VectorStoreModule],
-  providers: [SearchService],
-  exports: [SearchService],
+    controllers: [SearchController],
+    imports: [ConfigModule, EmbeddingModule, VectorStoreModule],
+    providers: [SearchService],
+    exports: [SearchService],
 })
-export class SearchModule {}
+export class SearchModule { }

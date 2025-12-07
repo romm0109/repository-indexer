@@ -14,9 +14,12 @@ export default registerAs('app', () => ({
     apiKey: process.env.EMBEDDING_API_KEY,
     modelName: process.env.EMBEDDING_MODEL_NAME || 'text-embedding-3-small',
     vectorSize: parseInt(process.env.EMBEDDING_VECTOR_SIZE ?? '1536', 10),
+    retries: parseInt(process.env.EMBEDDING_RETRIES ?? '3', 10),
+    retryDelay: parseInt(process.env.EMBEDDING_RETRY_DELAY ?? '1000', 10),
+    batchSize: parseInt(process.env.EMBEDDING_BATCH_SIZE ?? '1', 10),
   },
   chunking: {
-    size: parseInt(process.env.CHUNK_SIZE ?? '512', 10),
-    overlap: parseInt(process.env.CHUNK_OVERLAP ?? '64', 10),
+    size: parseInt(process.env.CHUNK_SIZE ?? '256', 10),
+    overlap: parseInt(process.env.CHUNK_OVERLAP ?? '32', 10),
   },
 }));

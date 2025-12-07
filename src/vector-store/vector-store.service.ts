@@ -13,6 +13,7 @@ export class VectorStoreService {
     this.client = new QdrantClient({
       url,
       apiKey,
+      checkCompatibility: false,
     });
   }
 
@@ -41,11 +42,13 @@ export class VectorStoreService {
     try {
       await this.client.upsert(collectionName, {
         wait: true,
-        points,
+        points
       });
     } catch (error) {
+      // Try to include any server-provided payload for easier debugging
+      const details = (error && (error.response?.data || error.message)) || String(error);
       throw new HttpException(
-        `Failed to upsert points: ${error.message}`,
+        `Failed to upsert points: ${JSON.stringify(details)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

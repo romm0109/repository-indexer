@@ -18,7 +18,7 @@ export class IndexerService {
     private vectorStoreService: VectorStoreService,
   ) {}
 
-  async indexRepository(projectId: string): Promise<void> {
+  async indexRepository(projectId: string, collectionName: string): Promise<void> {
     this.logger.log(`Starting indexing for project ${projectId}`);
 
     // 1. Fetch file list
@@ -29,7 +29,7 @@ export class IndexerService {
 
     // Ensure collection exists
     const vectorSize = this.configService.get<number>('app.embedding.vectorSize') || 1536;
-    await this.vectorStoreService.createCollection('codebase', vectorSize);
+    await this.vectorStoreService.createCollection(collectionName, vectorSize);
 
     for (const file of tsFiles) {
       this.logger.log(`Processing ${file.path}`);
@@ -62,7 +62,7 @@ export class IndexerService {
           },
         }));
 
-        await this.vectorStoreService.upsertPoints('codebase', points);
+        await this.vectorStoreService.upsertPoints(collectionName, points);
       } catch (e) {
         this.logger.error(`Failed to process ${file.path}: ${e.message}`);
       }
