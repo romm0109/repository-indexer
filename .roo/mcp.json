@@ -3,7 +3,7 @@
         "code-indexer": {
             "command": "node",
             "args": [
-                "http://localhost:3000",
+                "C:/Users/מחשב/Desktop/code-indexer/code-indexer/repository-indexer/dist/src/main.js",
                 "--collection",
                 "my-repo"
             ],

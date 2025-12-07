@@ -37,5 +37,9 @@ export default registerAs('app', () => ({
     transport: process.env.MCP_TRANSPORT || 'stdio',
     name: process.env.MCP_SERVER_NAME || 'code-indexer',
     version: process.env.MCP_SERVER_VERSION || '1.0.0',
+    sse: {
+      endpoint: process.env.MCP_SSE_ENDPOINT || '/mcp/sse',
+      port: parseInt(process.env.MCP_SSE_PORT ?? '3000', 10),
+    },
   },
 }));

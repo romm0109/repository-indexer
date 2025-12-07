@@ -10,10 +10,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
+  JSONRPCMessage,
 } from '@modelcontextprotocol/sdk/types.js';
 import { SearchService } from '../search/search.service';
 
@@ -22,6 +24,10 @@ interface McpConfig {
   transport: string;
   name: string;
   version: string;
+  sse: {
+    endpoint: string;
+    port: number;
+  };
 }
 
 interface ClientCollectionConfig {
@@ -32,9 +38,11 @@ interface ClientCollectionConfig {
 export class McpService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(McpService.name);
   private server: Server | null = null;
-  private transport: StdioServerTransport | null = null;
+  private transport: StdioServerTransport | SSEServerTransport | null = null;
   private mcpConfig: McpConfig;
   private clientCollectionConfig: ClientCollectionConfig | null = null;
+  private sseTransports: Map<string, SSEServerTransport> = new Map();
+  private sseSendCallbacks: Map<string, (message: string) => void> = new Map();
 
   constructor(
     private readonly configService: ConfigService,
@@ -76,6 +84,12 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
         this.transport = new StdioServerTransport();
         await this.server.connect(this.transport);
         this.logger.log('MCP server started on stdio transport');
+      } else if (this.mcpConfig.transport === 'sse') {
+        // For SSE, we don't connect a transport here
+        // Each SSE session will create its own transport in registerSseSession
+        this.logger.log(
+          `MCP server ready for SSE transport on ${this.mcpConfig.sse.endpoint}`,
+        );
       } else {
         throw new Error(`Unsupported transport: ${this.mcpConfig.transport}`);
       }
@@ -88,11 +102,100 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy() {
     if (this.server) {
       this.logger.log('Shutting down MCP server...');
+      
+      // Close all SSE transports
+      for (const [sessionId, transport] of this.sseTransports.entries()) {
+        try {
+          await transport.close();
+          this.logger.log(`Closed SSE transport for session: ${sessionId}`);
+        } catch (error) {
+          this.logger.error(
+            `Error closing SSE transport for session ${sessionId}`,
+            error,
+          );
+        }
+      }
+      this.sseTransports.clear();
+      this.sseSendCallbacks.clear();
+
       await this.server.close();
       this.server = null;
       this.transport = null;
       this.logger.log('MCP server shut down successfully');
     }
+  }
+
+  /**
+   * Register a new SSE session and create transport
+   */
+  async registerSseSession(sessionId: string, res: any) {
+    this.logger.log(`Registering SSE session: ${sessionId}`);
+
+    // Create a new SSE transport for this session
+    const sseTransport = new SSEServerTransport(
+      this.mcpConfig.sse.endpoint,
+      res,
+    );
+
+    this.sseTransports.set(sessionId, sseTransport);
+
+    // Start the SSE connection
+    await sseTransport.start();
+
+    // Connect the transport to the server
+    if (this.server && this.mcpConfig.transport === 'sse') {
+      await this.server.connect(sseTransport);
+      this.logger.log(`SSE transport connected for session: ${sessionId}`);
+    }
+
+    return sseTransport;
+  }
+
+  /**
+   * Unregister an SSE session
+   */
+  async unregisterSseSession(sessionId: string) {
+    this.logger.log(`Unregistering SSE session: ${sessionId}`);
+    
+    const transport = this.sseTransports.get(sessionId);
+    if (transport) {
+      try {
+        await transport.close();
+      } catch (error) {
+        this.logger.error(
+          `Error closing SSE transport for session ${sessionId}`,
+          error,
+        );
+      }
+      this.sseTransports.delete(sessionId);
+    }
+  }
+
+  /**
+   * Handle incoming SSE POST message from client
+   */
+  async handleSsePostMessage(sessionId: string, req: any, res: any, body?: unknown) {
+    const transport = this.sseTransports.get(sessionId);
+    if (!transport) {
+      throw new NotFoundException(`Session not found: ${sessionId}`);
+    }
+
+    try {
+      await transport.handlePostMessage(req, res, body);
+    } catch (error) {
+      this.logger.error(
+        `Error handling SSE POST message for session ${sessionId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get SSE transport by session ID
+   */
+  getSseTransport(sessionId: string): SSEServerTransport | undefined {
+    return this.sseTransports.get(sessionId);
   }
 
   private parseInitializationArguments() {

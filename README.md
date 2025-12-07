@@ -263,7 +263,7 @@ MCP server settings are configured via environment variables:
 # Enable/disable MCP server (default: false)
 MCP_ENABLED=true
 
-# Transport type (default: stdio)
+# Transport type: stdio or sse (default: stdio)
 MCP_TRANSPORT=stdio
 
 # Server name for MCP clients (default: code-indexer)
@@ -271,6 +271,76 @@ MCP_SERVER_NAME=code-indexer
 
 # Server version (default: 1.0.0)
 MCP_SERVER_VERSION=1.0.0
+
+# SSE Transport Settings (when MCP_TRANSPORT=sse)
+MCP_SSE_ENDPOINT=/mcp/message
+MCP_SSE_PORT=3000
+```
+
+### Transport Types
+
+The MCP server supports two transport protocols:
+
+#### 1. stdio Transport (Default)
+
+The stdio transport is ideal for local AI assistants like Claude Desktop and Cline. It communicates via standard input/output streams.
+
+**Use Cases:**
+- Local AI assistants (Claude Desktop, Cline)
+- Command-line tools
+- Process-based integrations
+
+**Configuration:**
+```env
+MCP_TRANSPORT=stdio
+```
+
+#### 2. SSE Transport (Server-Sent Events)
+
+The SSE transport enables remote MCP clients to connect over HTTP using Server-Sent Events for server-to-client messages and HTTP POST for client-to-server messages.
+
+**Use Cases:**
+- Remote AI assistants
+- Web-based integrations
+- Distributed systems
+- Cloud deployments
+
+**Configuration:**
+```env
+MCP_TRANSPORT=sse
+MCP_SSE_ENDPOINT=/mcp/message
+MCP_SSE_PORT=3000
+```
+
+**SSE Endpoints:**
+- `GET /mcp/sse` - Establish SSE connection (returns session ID)
+- `POST /mcp/message/:sessionId` - Send messages to the server
+
+**Example SSE Client Connection:**
+```javascript
+// Establish SSE connection
+const eventSource = new EventSource('http://localhost:3000/mcp/sse');
+
+eventSource.addEventListener('connected', (event) => {
+  const { sessionId } = JSON.parse(event.data);
+  console.log('Connected with session:', sessionId);
+  
+  // Send a message
+  fetch(`http://localhost:3000/mcp/message/${sessionId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'tools/list',
+      id: 1
+    })
+  });
+});
+
+eventSource.addEventListener('message', (event) => {
+  const response = JSON.parse(event.data);
+  console.log('Received:', response);
+});
 ```
 
 ### Client Configuration
