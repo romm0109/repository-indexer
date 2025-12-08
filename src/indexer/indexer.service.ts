@@ -39,14 +39,17 @@ export class IndexerService {
       '',
       true,
     );
-    const tsFiles = files.filter(
+    const filesToIndex = files.filter(
       (f: any) =>
         f.type === 'blob' &&
-        (f.path.endsWith('.ts') || f.path.endsWith('.tsx')) &&
+        (f.path.endsWith('.ts') ||
+          f.path.endsWith('.tsx') ||
+          f.path.endsWith('.yaml') ||
+          f.path.endsWith('.tpl')) &&
         !this.shouldExclude(f.path, excludePatterns),
     );
 
-    this.logger.log(`Found ${tsFiles.length} TypeScript files`);
+    this.logger.log(`Found ${filesToIndex.length} files to index`);
 
     // Ensure collection exists
     const vectorSize =
@@ -56,7 +59,7 @@ export class IndexerService {
     await this.processFiles(
       projectId,
       collectionName,
-      tsFiles.map((f: any) => f.path),
+      filesToIndex.map((f: any) => f.path),
     );
 
     this.logger.log(`Indexing completed for project ${projectId}`);
@@ -72,7 +75,10 @@ export class IndexerService {
 
     const filesToIndex = files.filter(
       (path) =>
-        (path.endsWith('.ts') || path.endsWith('.tsx')) &&
+        (path.endsWith('.ts') ||
+          path.endsWith('.tsx') ||
+          path.endsWith('.yaml') ||
+          path.endsWith('.tpl')) &&
         !this.shouldExclude(path, excludePatterns),
     );
 

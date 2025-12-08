@@ -8,20 +8,31 @@ import { VectorStoreService } from '../vector-store/vector-store.service';
 
 describe('IndexerService', () => {
   let service: IndexerService;
+  let vectorStoreService: VectorStoreService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IndexerService,
-        { provide: ConfigService, useValue: {} },
-        { provide: GitlabService, useValue: {} },
-        { provide: ChunkingService, useValue: {} },
-        { provide: EmbeddingService, useValue: {} },
-        { provide: VectorStoreService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: GitlabService, useValue: { fetchFileContent: jest.fn() } },
+        { provide: ChunkingService, useValue: { parseFile: jest.fn() } },
+        {
+          provide: EmbeddingService,
+          useValue: { embedDocuments: jest.fn() },
+        },
+        {
+          provide: VectorStoreService,
+          useValue: {
+            createCollection: jest.fn(),
+            upsertPoints: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<IndexerService>(IndexerService);
+    vectorStoreService = module.get<VectorStoreService>(VectorStoreService);
   });
 
   it('should be defined', () => {
@@ -59,6 +70,36 @@ describe('IndexerService', () => {
         service.shouldExclude('node_modules/package/index.js', patterns),
       ).toBe(true);
       expect(service.shouldExclude('src/app.ts', patterns)).toBe(false);
+    });
+  });
+
+  describe('indexFiles', () => {
+    it('should correctly filter for ts, tsx, yaml, and tpl files', async () => {
+      const files = [
+        'src/app.ts',
+        'src/app.tsx',
+        'src/component.js',
+        'config.yaml',
+        'template.tpl',
+        'README.md',
+      ];
+      const projectId = '123';
+      const collectionName = 'test-collection';
+
+      jest
+        .spyOn(vectorStoreService, 'createCollection')
+        .mockResolvedValue(undefined);
+      const processFilesSpy = jest
+        .spyOn(service as any, 'processFiles')
+        .mockResolvedValue(undefined);
+
+      await service.indexFiles(projectId, collectionName, files);
+
+      expect(processFilesSpy).toHaveBeenCalledWith(
+        projectId,
+        collectionName,
+        ['src/app.ts', 'src/app.tsx', 'config.yaml', 'template.tpl'],
+      );
     });
   });
 });
