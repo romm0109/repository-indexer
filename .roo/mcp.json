@@ -1,15 +1,7 @@
 {
     "mcpServers": {
         "code-indexer": {
-            "command": "node",
-            "args": [
-                "C:/Users/מחשב/Desktop/code-indexer/code-indexer/repository-indexer/dist/src/main.js",
-                "--collection",
-                "my-repo"
-            ],
-            "env": {
-                "MCP_ENABLED": "true"
-            }
+            "url": "http://localhost:3000/mcp/sse?collection=trying"
         }
     }
 }

@@ -42,6 +42,7 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
   private mcpConfig: McpConfig;
   private clientCollectionConfig: ClientCollectionConfig | null = null;
   private sseTransports: Map<string, SSEServerTransport> = new Map();
+  private sseServers: Map<string, Server> = new Map();
   private sseSendCallbacks: Map<string, (message: string) => void> = new Map();
 
   constructor(
@@ -63,24 +64,24 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
       // Parse initialization arguments for collection configuration
       this.parseInitializationArguments();
 
-      // Create MCP server
-      this.server = new Server(
-        {
-          name: this.mcpConfig.name,
-          version: this.mcpConfig.version,
-        },
-        {
-          capabilities: {
-            tools: {},
-          },
-        },
-      );
-
-      // Register tool handlers
-      this.registerToolHandlers();
-
       // Set up transport
       if (this.mcpConfig.transport === 'stdio') {
+        // Create MCP server for stdio
+        this.server = new Server(
+          {
+            name: this.mcpConfig.name,
+            version: this.mcpConfig.version,
+          },
+          {
+            capabilities: {
+              tools: {},
+            },
+          },
+        );
+
+        // Register tool handlers
+        this.registerToolHandlers(this.server, this.clientCollectionConfig);
+
         this.transport = new StdioServerTransport();
         await this.server.connect(this.transport);
         this.logger.log('MCP server started on stdio transport');
@@ -116,10 +117,26 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
         }
       }
       this.sseTransports.clear();
+      
+      // Close all SSE servers
+      for (const [sessionId, server] of this.sseServers.entries()) {
+        try {
+          await server.close();
+          this.logger.log(`Closed SSE server for session: ${sessionId}`);
+        } catch (error) {
+          this.logger.error(
+            `Error closing SSE server for session ${sessionId}`,
+            error,
+          );
+        }
+      }
+      this.sseServers.clear();
       this.sseSendCallbacks.clear();
 
-      await this.server.close();
-      this.server = null;
+      if (this.server) {
+        await this.server.close();
+        this.server = null;
+      }
       this.transport = null;
       this.logger.log('MCP server shut down successfully');
     }
@@ -128,25 +145,50 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
   /**
    * Register a new SSE session and create transport
    */
-  async registerSseSession(sessionId: string, res: any) {
+  async registerSseSession(
+    sessionId: string,
+    res: any,
+    collections?: string[],
+  ) {
     this.logger.log(`Registering SSE session: ${sessionId}`);
 
     // Create a new SSE transport for this session
     const sseTransport = new SSEServerTransport(
-      this.mcpConfig.sse.endpoint,
+      `/mcp/message/${sessionId}`,
       res,
     );
 
     this.sseTransports.set(sessionId, sseTransport);
 
-    // Start the SSE connection
-    await sseTransport.start();
+    // Create a new server instance for this session
+    const server = new Server(
+      {
+        name: this.mcpConfig.name,
+        version: this.mcpConfig.version,
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      },
+    );
+
+    // Determine collection config for this session
+    let sessionCollectionConfig: ClientCollectionConfig | null = null;
+    if (collections && collections.length > 0) {
+      sessionCollectionConfig = { collections };
+    } else {
+      sessionCollectionConfig = this.clientCollectionConfig;
+    }
+
+    // Register tool handlers for this session's server
+    this.registerToolHandlers(server, sessionCollectionConfig);
+
+    this.sseServers.set(sessionId, server);
 
     // Connect the transport to the server
-    if (this.server && this.mcpConfig.transport === 'sse') {
-      await this.server.connect(sseTransport);
-      this.logger.log(`SSE transport connected for session: ${sessionId}`);
-    }
+    await server.connect(sseTransport);
+    this.logger.log(`SSE transport connected for session: ${sessionId}`);
 
     return sseTransport;
   }
@@ -156,7 +198,7 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
    */
   async unregisterSseSession(sessionId: string) {
     this.logger.log(`Unregistering SSE session: ${sessionId}`);
-    
+
     const transport = this.sseTransports.get(sessionId);
     if (transport) {
       try {
@@ -168,6 +210,19 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
         );
       }
       this.sseTransports.delete(sessionId);
+    }
+
+    const server = this.sseServers.get(sessionId);
+    if (server) {
+      try {
+        await server.close();
+      } catch (error) {
+        this.logger.error(
+          `Error closing SSE server for session ${sessionId}`,
+          error,
+        );
+      }
+      this.sseServers.delete(sessionId);
     }
   }
 
@@ -227,28 +282,29 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private registerToolHandlers() {
-    if (!this.server) return;
-
+  private registerToolHandlers(
+    server: Server,
+    collectionConfig: ClientCollectionConfig | null,
+  ) {
     // Register list_tools handler
-    this.server.setRequestHandler(ListToolsRequestSchema, () => {
+    server.setRequestHandler(ListToolsRequestSchema, () => {
       return {
         tools: this.getToolDefinitions(),
       };
     });
 
     // Register call_tool handler
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
         switch (name) {
           case 'search_code_semantic':
-            return await this.handleSemanticSearch(args);
+            return await this.handleSemanticSearch(args, collectionConfig);
           case 'search_code_fulltext':
-            return await this.handleFulltextSearch(args);
+            return await this.handleFulltextSearch(args, collectionConfig);
           case 'search_code_by_payload':
-            return await this.handlePayloadSearch(args);
+            return await this.handlePayloadSearch(args, collectionConfig);
           default:
             throw new BadRequestException(`Unknown tool: ${name}`);
         }
@@ -336,9 +392,10 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
 
   private async handleSemanticSearch(
     args: Record<string, unknown> | undefined,
+    collectionConfig: ClientCollectionConfig | null,
   ) {
     // Validate collection configuration
-    if (!this.clientCollectionConfig) {
+    if (!collectionConfig) {
       throw new InternalServerErrorException(
         'Collection must be specified during client initialization using --collection or --collections argument',
       );
@@ -361,9 +418,9 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
 
     // Use client's configured collections
     const collectionName =
-      this.clientCollectionConfig.collections.length === 1
-        ? this.clientCollectionConfig.collections[0]
-        : this.clientCollectionConfig.collections;
+      collectionConfig.collections.length === 1
+        ? collectionConfig.collections[0]
+        : collectionConfig.collections;
 
     const results = await this.searchService.search(
       query,
@@ -384,9 +441,10 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
 
   private async handleFulltextSearch(
     args: Record<string, unknown> | undefined,
+    collectionConfig: ClientCollectionConfig | null,
   ) {
     // Validate collection configuration
-    if (!this.clientCollectionConfig) {
+    if (!collectionConfig) {
       throw new InternalServerErrorException(
         'Collection must be specified during client initialization using --collection or --collections argument',
       );
@@ -409,9 +467,9 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
 
     // Use client's configured collections
     const collectionName =
-      this.clientCollectionConfig.collections.length === 1
-        ? this.clientCollectionConfig.collections[0]
-        : this.clientCollectionConfig.collections;
+      collectionConfig.collections.length === 1
+        ? collectionConfig.collections[0]
+        : collectionConfig.collections;
 
     const results = await this.searchService.fulltextSearch(
       textQuery,
@@ -430,9 +488,12 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async handlePayloadSearch(args: Record<string, unknown> | undefined) {
+  private async handlePayloadSearch(
+    args: Record<string, unknown> | undefined,
+    collectionConfig: ClientCollectionConfig | null,
+  ) {
     // Validate collection configuration
-    if (!this.clientCollectionConfig) {
+    if (!collectionConfig) {
       throw new InternalServerErrorException(
         'Collection must be specified during client initialization using --collection or --collections argument',
       );
@@ -454,9 +515,9 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
 
     // Use client's configured collections
     const collectionName =
-      this.clientCollectionConfig.collections.length === 1
-        ? this.clientCollectionConfig.collections[0]
-        : this.clientCollectionConfig.collections;
+      collectionConfig.collections.length === 1
+        ? collectionConfig.collections[0]
+        : collectionConfig.collections;
 
     const results = await this.searchService.searchByPayload(
       payload,

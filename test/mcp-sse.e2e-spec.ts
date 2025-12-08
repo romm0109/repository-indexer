@@ -38,23 +38,53 @@ describe('MCP SSE (e2e)', () => {
       }
     });
 
-    it('should establish SSE connection when enabled', async () => {
+    it('should establish SSE connection when enabled', (done) => {
       const mcpEnabled = configService.get('app.mcp.enabled');
       const mcpTransport = configService.get('app.mcp.transport');
 
       if (!mcpEnabled || mcpTransport !== 'sse') {
-        return; // Skip test if SSE is not enabled
+        done();
+        return;
       }
 
-      const response = await request(app.getHttpServer())
+      const req = request(app.getHttpServer())
         .get('/mcp/sse')
         .set('Accept', 'text/event-stream')
-        .expect(200)
-        .expect('Content-Type', /text\/event-stream/);
+        .buffer(false); // Do not buffer the response
 
-      // The response should be an SSE stream
-      expect(response.headers['content-type']).toContain('text/event-stream');
-    });
+      req.on('response', (res) => {
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['content-type']).toMatch(/text\/event-stream/);
+        res.destroy(); // Close the response stream
+        done();
+      });
+
+      req.end();
+    }, 10000);
+
+    it('should accept collection parameter in SSE connection', (done) => {
+      const mcpEnabled = configService.get('app.mcp.enabled');
+      const mcpTransport = configService.get('app.mcp.transport');
+
+      if (!mcpEnabled || mcpTransport !== 'sse') {
+        done();
+        return;
+      }
+
+      const req = request(app.getHttpServer())
+        .get('/mcp/sse?collection=test-collection')
+        .set('Accept', 'text/event-stream')
+        .buffer(false); // Do not buffer the response
+
+      req.on('response', (res) => {
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['content-type']).toMatch(/text\/event-stream/);
+        res.destroy(); // Close the response stream
+        done();
+      });
+
+      req.end();
+    }, 10000);
 
     it('should reject POST to non-existent session', async () => {
       const mcpEnabled = configService.get('app.mcp.enabled');

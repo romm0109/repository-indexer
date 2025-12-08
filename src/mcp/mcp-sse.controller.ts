@@ -9,6 +9,7 @@ import {
   Logger,
   BadRequestException,
   Param,
+  Query,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { McpService } from './mcp.service';
@@ -24,13 +25,28 @@ export class McpSseController {
    * GET /mcp/sse
    */
   @Get('sse')
-  async handleSseConnection(@Req() req: Request, @Res() res: Response) {
+  async handleSseConnection(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('collection') collection?: string,
+  ) {
     try {
       const sessionId = this.generateSessionId();
-      this.logger.log(`New SSE connection request: ${sessionId}`);
+      this.logger.log(
+        `New SSE connection request: ${sessionId} (collection: ${collection || 'default'})`,
+      );
+
+      // Parse collection(s)
+      const collections = collection
+        ? collection.split(',').map((c) => c.trim())
+        : undefined;
 
       // Register the SSE session and create transport
-      const transport = await this.mcpService.registerSseSession(sessionId, res);
+      const transport = await this.mcpService.registerSseSession(
+        sessionId,
+        res,
+        collections,
+      );
 
       // Clean up on disconnect
       req.on('close', async () => {
