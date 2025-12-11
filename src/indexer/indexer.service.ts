@@ -45,6 +45,7 @@ export class IndexerService {
         (f.path.endsWith('.ts') ||
           f.path.endsWith('.tsx') ||
           f.path.endsWith('.yaml') ||
+          f.path.endsWith('.yml') ||
           f.path.endsWith('.tpl')) &&
         !this.shouldExclude(f.path, excludePatterns),
     );
