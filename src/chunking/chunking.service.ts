@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as ts from 'typescript';
+import * as yaml from 'yaml';
 
 export interface Chunk {
   filePath: string;
@@ -24,6 +25,28 @@ export class ChunkingService {
   }
 
   async parseFile(content: string, filePath: string): Promise<Chunk[]> {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+
+    switch (ext) {
+      case 'ts':
+      case 'tsx':
+      case 'js':
+      case 'jsx':
+        return this.parseTypeScriptFile(content, filePath);
+      case 'tpl':
+        return this.parseTemplateFile(content, filePath);
+      case 'yaml':
+      case 'yml':
+        return this.parseYamlFile(content, filePath);
+      default:
+        return this.parseGenericFile(content, filePath);
+    }
+  }
+
+  private async parseTypeScriptFile(
+    content: string,
+    filePath: string,
+  ): Promise<Chunk[]> {
     const sourceFile = ts.createSourceFile(
       filePath,
       content,
@@ -52,6 +75,242 @@ export class ChunkingService {
     visit(sourceFile);
 
     return this.processChunks(chunks);
+  }
+
+  private parseTemplateFile(content: string, filePath: string): Chunk[] {
+    const chunks: Chunk[] = [];
+    const lines = content.split('\n');
+    
+    // Pattern to detect template blocks/sections
+    const blockPatterns = [
+      { regex: /^{{-?\s*define\s+"([^"]+)"/, type: 'template-define' },
+      { regex: /^{{-?\s*block\s+"([^"]+)"/, type: 'template-block' },
+      { regex: /^{{-?\s*template\s+"([^"]+)"/, type: 'template-section' },
+      { regex: /^#\s*(.+)$/, type: 'template-comment-section' },
+    ];
+
+    let currentBlock: {
+      name: string;
+      type: string;
+      startLine: number;
+      lines: string[];
+    } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Check for block start
+      for (const pattern of blockPatterns) {
+        const match = trimmedLine.match(pattern.regex);
+        if (match) {
+          // Save previous block if exists
+          if (currentBlock) {
+            chunks.push({
+              filePath,
+              symbolName: currentBlock.name,
+              symbolKind: currentBlock.type,
+              startLine: currentBlock.startLine,
+              endLine: i,
+              content: currentBlock.lines.join('\n'),
+              isExported: false,
+            });
+          }
+
+          // Start new block
+          currentBlock = {
+            name: match[1] || `section-${i + 1}`,
+            type: pattern.type,
+            startLine: i + 1,
+            lines: [line],
+          };
+          break;
+        }
+      }
+
+      // Check for block end
+      if (currentBlock && trimmedLine.match(/^{{-?\s*end\s*-?}}/)) {
+        currentBlock.lines.push(line);
+        chunks.push({
+          filePath,
+          symbolName: currentBlock.name,
+          symbolKind: currentBlock.type,
+          startLine: currentBlock.startLine,
+          endLine: i + 1,
+          content: currentBlock.lines.join('\n'),
+          isExported: false,
+        });
+        currentBlock = null;
+      } else if (currentBlock) {
+        currentBlock.lines.push(line);
+      }
+    }
+
+    // Save last block if exists
+    if (currentBlock) {
+      chunks.push({
+        filePath,
+        symbolName: currentBlock.name,
+        symbolKind: currentBlock.type,
+        startLine: currentBlock.startLine,
+        endLine: lines.length,
+        content: currentBlock.lines.join('\n'),
+        isExported: false,
+      });
+    }
+
+    // If no blocks found, treat as single chunk
+    if (chunks.length === 0) {
+      chunks.push({
+        filePath,
+        symbolName: 'template',
+        symbolKind: 'template-file',
+        startLine: 1,
+        endLine: lines.length,
+        content,
+        isExported: false,
+      });
+    }
+
+    return this.processChunks(chunks);
+  }
+
+  private parseYamlFile(content: string, filePath: string): Chunk[] {
+    const chunks: Chunk[] = [];
+    const lines = content.split('\n');
+
+    try {
+      const doc = yaml.parseDocument(content);
+      
+      // Extract top-level keys as separate chunks
+      if (doc.contents && yaml.isMap(doc.contents)) {
+        for (const pair of doc.contents.items) {
+          if (yaml.isScalar(pair.key)) {
+            const keyName = String(pair.key.value);
+            const range = pair.value?.range;
+            
+            if (range) {
+              const startPos = this.getLineFromPosition(content, range[0]);
+              const endPos = this.getLineFromPosition(content, range[1]);
+              
+              // Extract the content for this key
+              const keyContent = lines
+                .slice(startPos - 1, endPos)
+                .join('\n');
+
+              chunks.push({
+                filePath,
+                symbolName: keyName,
+                symbolKind: 'yaml-key',
+                startLine: startPos,
+                endLine: endPos,
+                content: keyContent,
+                isExported: false,
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // If YAML parsing fails, fall back to simple line-based chunking
+      console.warn(`YAML parsing failed for ${filePath}, using fallback`);
+    }
+
+    // If no chunks found or parsing failed, use indentation-based chunking
+    if (chunks.length === 0) {
+      let currentSection: {
+        name: string;
+        startLine: number;
+        lines: string[];
+      } | null = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmedLine = line.trim();
+
+        // Skip empty lines and comments at root level
+        if (!trimmedLine || trimmedLine.startsWith('#')) {
+          if (currentSection) {
+            currentSection.lines.push(line);
+          }
+          continue;
+        }
+
+        // Detect top-level keys (no leading whitespace before key)
+        if (line.match(/^[a-zA-Z_][\w-]*:/)) {
+          // Save previous section
+          if (currentSection) {
+            chunks.push({
+              filePath,
+              symbolName: currentSection.name,
+              symbolKind: 'yaml-section',
+              startLine: currentSection.startLine,
+              endLine: i,
+              content: currentSection.lines.join('\n'),
+              isExported: false,
+            });
+          }
+
+          // Start new section
+          const keyMatch = line.match(/^([a-zA-Z_][\w-]*):/);
+          currentSection = {
+            name: keyMatch ? keyMatch[1] : `section-${i + 1}`,
+            startLine: i + 1,
+            lines: [line],
+          };
+        } else if (currentSection) {
+          currentSection.lines.push(line);
+        }
+      }
+
+      // Save last section
+      if (currentSection) {
+        chunks.push({
+          filePath,
+          symbolName: currentSection.name,
+          symbolKind: 'yaml-section',
+          startLine: currentSection.startLine,
+          endLine: lines.length,
+          content: currentSection.lines.join('\n'),
+          isExported: false,
+        });
+      }
+    }
+
+    // If still no chunks, treat entire file as one chunk
+    if (chunks.length === 0) {
+      chunks.push({
+        filePath,
+        symbolName: 'yaml-config',
+        symbolKind: 'yaml-file',
+        startLine: 1,
+        endLine: lines.length,
+        content,
+        isExported: false,
+      });
+    }
+
+    return this.processChunks(chunks);
+  }
+
+  private parseGenericFile(content: string, filePath: string): Chunk[] {
+    const lines = content.split('\n');
+    return this.processChunks([
+      {
+        filePath,
+        symbolName: 'content',
+        symbolKind: 'file',
+        startLine: 1,
+        endLine: lines.length,
+        content,
+        isExported: false,
+      },
+    ]);
+  }
+
+  private getLineFromPosition(content: string, position: number): number {
+    const upToPosition = content.substring(0, position);
+    return upToPosition.split('\n').length;
   }
 
   private createChunkFromNode(
@@ -83,7 +342,6 @@ export class ChunkingService {
       }
     }
 
-    // Check if exported
     if (ts.canHaveModifiers(node)) {
       const modifiers = ts.getModifiers(node);
       if (modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
@@ -96,12 +354,6 @@ export class ChunkingService {
     );
     const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
 
-    // Get full text including JSDoc comments if possible
-    // Note: getFullText() includes preceding whitespace/comments, getText() does not.
-    // We might want to be more selective about comments.
-    // For now, let's use getText() but try to grab JSDoc manually if needed,
-    // or rely on getFullText() and trim.
-    // A simple approach: use getFullText() but trim leading newlines.
     const content = node.getFullText(sourceFile).trim();
 
     return {
@@ -119,24 +371,20 @@ export class ChunkingService {
     const processedChunks: Chunk[] = [];
     let currentGroup: Chunk[] = [];
     let currentGroupSize = 0;
-    const minTokens = 64; // Should be configurable
+    const minTokens = 64;
 
     for (const chunk of chunks) {
       const tokenCount = this.estimateTokenCount(chunk.content);
 
       if (tokenCount > this.chunkSize) {
-        // If we have a pending group, push it first
         if (currentGroup.length > 0) {
           processedChunks.push(this.mergeChunks(currentGroup));
           currentGroup = [];
           currentGroupSize = 0;
         }
-        // Split large chunk
         processedChunks.push(...this.splitLargeChunk(chunk));
       } else if (tokenCount < minTokens) {
-        // Add to group
         if (currentGroupSize + tokenCount > this.chunkSize) {
-          // Group full, push and start new
           processedChunks.push(this.mergeChunks(currentGroup));
           currentGroup = [chunk];
           currentGroupSize = tokenCount;
@@ -145,8 +393,6 @@ export class ChunkingService {
           currentGroupSize += tokenCount;
         }
       } else {
-        // Normal sized chunk
-        // If we have a pending group, push it first
         if (currentGroup.length > 0) {
           processedChunks.push(this.mergeChunks(currentGroup));
           currentGroup = [];
@@ -156,7 +402,6 @@ export class ChunkingService {
       }
     }
 
-    // Push remaining group
     if (currentGroup.length > 0) {
       processedChunks.push(this.mergeChunks(currentGroup));
     }
@@ -165,7 +410,6 @@ export class ChunkingService {
   }
 
   private estimateTokenCount(text: string): number {
-    // Simple approximation: 1 token ~= 4 chars
     return Math.ceil(text.length / 4);
   }
 
@@ -175,8 +419,6 @@ export class ChunkingService {
     let currentChunkLines: string[] = [];
     let currentSize = 0;
 
-    // Header to prepend to each sub-chunk (e.g. function signature)
-    // For simplicity, we'll just take the first line as header if it looks like a declaration
     const header = lines[0];
     const headerTokens = this.estimateTokenCount(header);
 
@@ -191,7 +433,6 @@ export class ChunkingService {
             content:
               (subChunks.length > 0 ? header + '\n' : '') +
               currentChunkLines.join('\n'),
-            // Adjust start/end lines approximately
             startLine: chunk.startLine + i - currentChunkLines.length,
             endLine: chunk.startLine + i,
           });
