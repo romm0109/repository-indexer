@@ -1,7 +1,1 @@
-{
-    "mcpServers": {
-        "code-indexer": {
-            "url": "http://localhost:3000/mcp/sse?collection=trying"
-        }
-    }
-}
+{"mcpServers":{}}

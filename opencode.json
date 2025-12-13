@@ -1,0 +1,74 @@
+{
+  "model": "openrouter/openai/gpt-oss-120b",
+  "provider": {
+    "proxy": {
+      "name": "proxy",
+      "npm": "@ai-sdk/openai",
+      "models": {
+        "openai/gpt-oss-120b": {
+          "name": "GPT-OSS 120B (proxy)",
+          "limit": {
+            "context": 32768,
+            "output": 2048
+          }
+        }
+      },
+      "options": {
+        "baseURL": "https://openrouter.ai/api/v1",
+        "apiKey": "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"
+      },
+      "env": []
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "npm": "@ai-sdk/openai-compatible",
+      "models": {
+        "meta-llama/llama-4-scout": {
+          "name": "Llama 4 Scout (OpenRouter)",
+          "limit": {
+            "context": 327680,
+            "output": 16384
+          }
+        },
+        "meta-llama/llama-3.1-70B-Instruct": {
+          "name": "Llama 3.1 Scout (OpenRouter)",
+          "limit": {
+            "context": 327680,
+            "output": 16384
+          }
+        },
+        "OpenAI/GPT-5.2": {
+          "name": "chat-gpt-5.2",
+          "limit": {
+            "context": 327680,
+            "output": 16384
+          }
+        }
+      },
+      "options": {
+        "baseURL": "https://openrouter.ai/api/v1",
+        "headers": {
+          "Authorization": "Bearer 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",
+          "HTTP-Referer": "http://localhost",
+          "X-Title": "Zed + OpenCode"
+        }
+      }
+    }
+  },
+  "keybinds": {
+    "command_list": "ctrl+d"
+  },
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:/Users/מחשב/Desktop/code-indexer"
+      ]
+    }
+  },
+  "$schema": "https://opencode.ai/config.json"
+}
