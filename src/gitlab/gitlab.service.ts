@@ -1,9 +1,13 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import {
+  RepositorySource,
+  RepositoryNode,
+} from '../common/interfaces/repository-source.interface';
 
 @Injectable()
-export class GitlabService {
+export class GitlabService implements RepositorySource {
   private readonly gitlabUrl: string;
   private readonly gitlabToken: string;
   private readonly axiosInstance: AxiosInstance;
@@ -25,7 +29,7 @@ export class GitlabService {
     projectId: string,
     path: string = '',
     recursive: boolean = true,
-  ): Promise<any[]> {
+  ): Promise<RepositoryNode[]> {
     try {
       const response = await this.axiosInstance.get(
         `/api/v4/projects/${encodeURIComponent(projectId)}/repository/tree`,

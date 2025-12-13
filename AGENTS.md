@@ -16,3 +16,5 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+Before every answer you must use theses tools: code-indexer_search_code_semantic, code-indexer_search_code_fulltext for better understanding the code

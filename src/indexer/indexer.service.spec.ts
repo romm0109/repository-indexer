@@ -2,21 +2,35 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { IndexerService } from './indexer.service';
 import { ConfigService } from '@nestjs/config';
 import { GitlabService } from '../gitlab/gitlab.service';
+import { LocalRepoService } from '../local-repo/local-repo.service';
 import { ChunkingService } from '../chunking/chunking.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { VectorStoreService } from '../vector-store/vector-store.service';
+import { RepositoryType } from './dto/index-repo.dto';
 
 describe('IndexerService', () => {
   let service: IndexerService;
   let vectorStoreService: VectorStoreService;
+  let gitlabService: GitlabService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IndexerService,
         { provide: ConfigService, useValue: { get: jest.fn() } },
-        { provide: GitlabService, useValue: { fetchFileContent: jest.fn() } },
+        {
+          provide: GitlabService,
+          useValue: {
+            fetchFileContent: jest.fn(),
+            fetchRepositoryTree: jest.fn(),
+          },
+        },
+        {
+          provide: LocalRepoService,
+          useValue: { fetchFileContent: jest.fn() },
+        },
         { provide: ChunkingService, useValue: { parseFile: jest.fn() } },
+
         {
           provide: EmbeddingService,
           useValue: { embedDocuments: jest.fn() },
@@ -33,6 +47,7 @@ describe('IndexerService', () => {
 
     service = module.get<IndexerService>(IndexerService);
     vectorStoreService = module.get<VectorStoreService>(VectorStoreService);
+    gitlabService = module.get<GitlabService>(GitlabService);
   });
 
   it('should be defined', () => {
@@ -93,9 +108,15 @@ describe('IndexerService', () => {
         .spyOn(service as any, 'processFiles')
         .mockResolvedValue(undefined);
 
-      await service.indexFiles(projectId, collectionName, files);
+      await service.indexFiles({
+        projectId,
+        collectionName,
+        files,
+        type: RepositoryType.GITLAB,
+      });
 
       expect(processFilesSpy).toHaveBeenCalledWith(
+        gitlabService,
         projectId,
         collectionName,
         ['src/app.ts', 'src/app.tsx', 'config.yaml', 'template.tpl'],

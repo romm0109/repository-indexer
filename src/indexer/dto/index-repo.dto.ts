@@ -1,10 +1,40 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  ValidateIf,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export enum RepositoryType {
+  GITLAB = 'gitlab',
+  LOCAL = 'local',
+}
+
 export class IndexRepoDto {
-  @ApiProperty({ description: 'GitLab Project ID' })
+  @ApiPropertyOptional({
+    description: 'Repository type',
+    enum: RepositoryType,
+    default: RepositoryType.GITLAB,
+  })
+  @IsOptional()
+  @IsEnum(RepositoryType)
+  type?: RepositoryType = RepositoryType.GITLAB;
+
+  @ApiPropertyOptional({
+    description: 'GitLab Project ID (required if type is gitlab)',
+  })
+  @ValidateIf((o) => o.type === RepositoryType.GITLAB || !o.type)
   @IsString()
-  projectId: string;
+  projectId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Local filesystem path (required if type is local)',
+  })
+  @ValidateIf((o) => o.type === RepositoryType.LOCAL)
+  @IsString()
+  path?: string;
 
   @ApiProperty({ description: 'Name of the Qdrant collection' })
   @IsString()

@@ -15,7 +15,7 @@
       },
       "options": {
         "baseURL": "https://openrouter.ai/api/v1",
-        "apiKey": "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"
+        "apiKey": "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"
       },
       "env": []
     },
@@ -45,10 +45,13 @@
           }
         }
       },
+
       "options": {
         "baseURL": "https://openrouter.ai/api/v1",
+        "apiKey": "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",
+
         "headers": {
-          "Authorization": "Bearer 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",
+          "Authorization": "Bearer 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",
           "HTTP-Referer": "http://localhost",
           "X-Title": "Zed + OpenCode"
         }
@@ -68,6 +71,20 @@
         "@modelcontextprotocol/server-filesystem",
         "C:/Users/מחשב/Desktop/code-indexer"
       ]
+    },
+    "code-indexer": {
+      "type": "local",
+
+      "command": [
+        "node",
+        "C:/Users/מחשב/Desktop/code-indexer/code-indexer/repository-indexer/dist/src/main.js",
+        "--collection",
+        "tyty"
+      ],
+      "environment": {
+        "MCP_ENABLED": "true",
+        "MCP_TRANSPORT": "stdio"
+      }
     }
   },
   "$schema": "https://opencode.ai/config.json"

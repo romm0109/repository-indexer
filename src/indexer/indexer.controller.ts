@@ -14,11 +14,7 @@ export class IndexerController {
   @ApiResponse({ status: 201, description: 'Indexing started successfully.' })
   async indexRepository(@Body() indexRepoDto: IndexRepoDto) {
     // Trigger indexing in background
-    this.indexerService.indexRepository(
-      indexRepoDto.projectId,
-      indexRepoDto.collectionName,
-      indexRepoDto.excludePatterns,
-    );
+    this.indexerService.indexRepository(indexRepoDto);
     return { message: 'Indexing started' };
   }
 
@@ -30,12 +26,7 @@ export class IndexerController {
   })
   async indexFiles(@Body() indexFilesDto: IndexFilesDto) {
     // Trigger indexing in background
-    this.indexerService.indexFiles(
-      indexFilesDto.projectId,
-      indexFilesDto.collectionName,
-      indexFilesDto.files,
-      indexFilesDto.excludePatterns,
-    );
+    this.indexerService.indexFiles(indexFilesDto);
     return { message: 'Selective indexing started' };
   }
 }

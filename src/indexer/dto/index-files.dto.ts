@@ -1,10 +1,33 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  ValidateIf,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { RepositoryType } from './index-repo.dto';
 
 export class IndexFilesDto {
-  @ApiProperty({ description: 'GitLab Project ID' })
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  @ApiPropertyOptional({
+    description: 'Repository type',
+    enum: RepositoryType,
+    default: RepositoryType.GITLAB,
+  })
+  @IsOptional()
+  @IsEnum(RepositoryType)
+  type?: RepositoryType = RepositoryType.GITLAB;
+
+  @ApiPropertyOptional({ description: 'GitLab Project ID' })
+  @ValidateIf((o) => o.type === RepositoryType.GITLAB || !o.type)
   @IsString()
-  projectId: string;
+  projectId?: string;
+
+  @ApiPropertyOptional({ description: 'Local filesystem path' })
+  @ValidateIf((o) => o.type === RepositoryType.LOCAL)
+  @IsString()
+  path?: string;
 
   @ApiProperty({ description: 'Name of the Qdrant collection' })
   @IsString()
